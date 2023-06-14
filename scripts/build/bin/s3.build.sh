@@ -20,8 +20,8 @@ done
 echo "PROCESS: Building react application."
 
 npm install --prefix "$1"
-npm test -- --watchAll=false --prefix "$1"
-npm run build -- --prefix "$1"
+npm run test --prefix "$1" -- --watchAll=false
+npm run build --prefix "$1"
 
 echo "SUCCESS: React application building completed successfully."
 exit 0
