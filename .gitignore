@@ -9,3 +9,4 @@ unused
 !*.EXAMPLE.json
 !scripts
 !scripts/build
+!frontend/src/**/config.json
