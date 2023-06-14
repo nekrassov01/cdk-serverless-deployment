@@ -5,11 +5,15 @@ phases:
       nodejs: 16
   pre_build:
     commands:
-      - npm install --prefix frontend
-      - bash scripts/build/bin/install.awscliv2.sh
+      - cd frontend
+      - npm install
+      - bash ../scripts/build/bin/install.awscliv2.sh
   build:
     commands:
-      - bash scripts/build/bin/s3.build.sh
+      - bash ../scripts/build/bin/s3.build.sh
+  post_build:
+    commands:
+      - cd ..
 artifacts:
   files:
     - "**/*"
