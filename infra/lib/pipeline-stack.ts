@@ -142,7 +142,7 @@ export class PipelineStack extends Stack {
     // Create codebuild project for react build
     const buildStage = new codebuild.PipelineProject(this, "BuildStage", {
       projectName: `${serviceName}-build-stage`,
-      buildSpec: codebuild.BuildSpec.fromAsset(
+      buildSpec: codebuild.BuildSpec.fromSourceFilename(
         path.join(__dirname, "../../scripts/build/buildspec.frontend.build.yml")
       ),
       environment: {
@@ -172,7 +172,7 @@ export class PipelineStack extends Stack {
     // Create codebuild project for deploy (s3 sync and cloudfront continuous deployment)
     const deployStage = new codebuild.PipelineProject(this, "DeployStage", {
       projectName: `${serviceName}-deploy-stage`,
-      buildSpec: codebuild.BuildSpec.fromAsset(
+      buildSpec: codebuild.BuildSpec.fromSourceFilename(
         path.join(__dirname, "../../scripts/build/buildspec.frontend.deploy.yml")
       ),
       environment: {
@@ -201,7 +201,7 @@ export class PipelineStack extends Stack {
     // Create codebuild project for cloudfront staging promotion
     const promoteStage = new codebuild.PipelineProject(this, "PromoteStage", {
       projectName: `${serviceName}-promote-stage`,
-      buildSpec: codebuild.BuildSpec.fromAsset(
+      buildSpec: codebuild.BuildSpec.fromSourceFilename(
         path.join(__dirname, "../../scripts/build/buildspec.frontend.promote.yml")
       ),
       environment: {
@@ -321,7 +321,7 @@ export class PipelineStack extends Stack {
         branchOrRef: branch,
         cloneDepth: 1,
       }),
-      buildSpec: codebuild.BuildSpec.fromAsset(
+      buildSpec: codebuild.BuildSpec.fromSourceFilename(
         path.join(__dirname, "../../scripts/build/buildspec.frontend.cleanup.yml")
       ),
       environment: {

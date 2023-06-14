@@ -14,8 +14,8 @@ done
 
 echo "PROCESS: Building react application."
 
-npm test -- --watchAll=false
-npm run build
+npm test -- --watchAll=false --prefix frontend
+npm run build -- --prefix frontend
 
 echo "SUCCESS: React application building completed successfully."
 exit 0

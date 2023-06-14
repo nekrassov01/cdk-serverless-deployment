@@ -15,7 +15,7 @@ done
 echo "PROCESS: Synchronizing contents to hosting bucket."
 
 frontend_version=$(get_ssm_parameter "/$SERVICE_NAME/$ENVIRONMENT_NAME/$BRANCH/version/frontend")
-deploy_content "./build/" "s3://$BUCKET_NAME/$frontend_version"
+deploy_content "./fronted/build/" "s3://$BUCKET_NAME/$frontend_version"
 
 echo "SUCCESS: Application deployment completed successfully."
 exit 0
