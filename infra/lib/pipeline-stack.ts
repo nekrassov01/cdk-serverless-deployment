@@ -16,7 +16,6 @@ import {
   aws_ssm as ssm,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import * as path from "path";
 
 const app = new App();
 
@@ -142,9 +141,7 @@ export class PipelineStack extends Stack {
     // Create codebuild project for react build
     const buildStage = new codebuild.PipelineProject(this, "BuildStage", {
       projectName: `${serviceName}-build-stage`,
-      buildSpec: codebuild.BuildSpec.fromSourceFilename(
-        path.join(__dirname, "../../scripts/build/buildspec.frontend.build.yml")
-      ),
+      buildSpec: codebuild.BuildSpec.fromSourceFilename("scripts/build/buildspec.frontend.build.yml"),
       environment: {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },
@@ -172,9 +169,7 @@ export class PipelineStack extends Stack {
     // Create codebuild project for deploy (s3 sync and cloudfront continuous deployment)
     const deployStage = new codebuild.PipelineProject(this, "DeployStage", {
       projectName: `${serviceName}-deploy-stage`,
-      buildSpec: codebuild.BuildSpec.fromSourceFilename(
-        path.join(__dirname, "../../scripts/build/buildspec.frontend.deploy.yml")
-      ),
+      buildSpec: codebuild.BuildSpec.fromSourceFilename("scripts/build/buildspec.frontend.deploy.yml"),
       environment: {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },
@@ -201,9 +196,7 @@ export class PipelineStack extends Stack {
     // Create codebuild project for cloudfront staging promotion
     const promoteStage = new codebuild.PipelineProject(this, "PromoteStage", {
       projectName: `${serviceName}-promote-stage`,
-      buildSpec: codebuild.BuildSpec.fromSourceFilename(
-        path.join(__dirname, "../../scripts/build/buildspec.frontend.promote.yml")
-      ),
+      buildSpec: codebuild.BuildSpec.fromSourceFilename("scripts/build/buildspec.frontend.promote.yml"),
       environment: {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },
@@ -321,9 +314,7 @@ export class PipelineStack extends Stack {
         branchOrRef: branch,
         cloneDepth: 1,
       }),
-      buildSpec: codebuild.BuildSpec.fromSourceFilename(
-        path.join(__dirname, "../../scripts/build/buildspec.frontend.cleanup.yml")
-      ),
+      buildSpec: codebuild.BuildSpec.fromSourceFilename("scripts/build/buildspec.frontend.cleanup.yml"),
       environment: {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },

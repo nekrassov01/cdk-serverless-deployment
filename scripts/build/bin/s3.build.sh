@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+if [ -z "$1" ]; then
+  echo "Required npm prefix!"
+  exit 1
+fi
+
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
 for cmd in aws jq; do
@@ -14,8 +19,9 @@ done
 
 echo "PROCESS: Building react application."
 
-npm test -- --watchAll=false --prefix frontend
-npm run build -- --prefix frontend
+npm install --prefix "$1"
+npm test -- --watchAll=false --prefix "$1"
+npm run build -- --prefix "$1"
 
 echo "SUCCESS: React application building completed successfully."
 exit 0
