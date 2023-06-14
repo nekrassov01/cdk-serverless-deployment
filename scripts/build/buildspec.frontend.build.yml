@@ -5,14 +5,13 @@ phases:
       nodejs: 16
   pre_build:
     commands:
+      - echo $CODEBUILD_SRC_DIR
+      - pwd
       - npm install --prefix ./frontend
       - bash ./scripts/build/bin/install.awscliv2.sh
   build:
     commands:
       - bash ./scripts/build/bin/s3.build.sh
-  post_build:
-    commands:
-      - cd ..
 artifacts:
   files:
     - "**/*"
