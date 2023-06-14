@@ -7,6 +7,5 @@ unused
 !package.json
 !tsconfig.json
 !*.EXAMPLE.json
-!scripts
 !scripts/build
 !frontend/src/**/config.json

@@ -2,14 +2,14 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - bash buildspec/install.awscliv2.sh
+      - bash scripts/build/bin/install.awscliv2.sh
   build:
     commands:
-      - bash buildspec/s3.deploy.sh ./fronted/build/
-      - bash buildspec/cfcd.deploy.sh
+      - bash scripts/build/bin/s3.deploy.sh ./fronted/build/
+      - bash scripts/build/bin/cfcd.deploy.sh
   post_build:
     commands:
-      - bash buildspec/cfcd.invalidate.sh
+      - bash scripts/build/bin/cfcd.invalidate.sh
 artifacts:
   files:
     - "**/*"
