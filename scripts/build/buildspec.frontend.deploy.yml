@@ -5,7 +5,7 @@ phases:
       - bash scripts/build/bin/install.awscliv2.sh
   build:
     commands:
-      - bash scripts/build/bin/s3.deploy.sh ./fronted/build/
+      - bash scripts/build/bin/s3.deploy.sh ./frontend/build/
       - bash scripts/build/bin/cfcd.deploy.sh
   post_build:
     commands:
