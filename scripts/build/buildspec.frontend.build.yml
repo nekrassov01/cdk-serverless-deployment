@@ -1,0 +1,15 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 16
+  pre_build:
+    commands:
+      - npm install
+      - bash scripts/build/bin/install.awscliv2.sh
+  build:
+    commands:
+      - bash scripts/build/bin/s3.build.sh
+artifacts:
+  files:
+    - "**/*"

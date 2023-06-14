@@ -1,0 +1,11 @@
+old
+backup
+unused
+!bin
+!lib
+*.json
+!package.json
+!tsconfig.json
+!*.EXAMPLE.json
+!scripts
+!scripts/build

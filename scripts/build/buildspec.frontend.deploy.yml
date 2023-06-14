@@ -1,0 +1,19 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 16
+  pre_build:
+    commands:
+      - npm install
+      - bash buildspec/install.awscliv2.sh
+  build:
+    commands:
+      - bash buildspec/s3.deploy.sh
+      - bash buildspec/cfcd.deploy.sh
+  post_build:
+    commands:
+      - bash buildspec/cfcd.invalidate.sh
+artifacts:
+  files:
+    - "**/*"
