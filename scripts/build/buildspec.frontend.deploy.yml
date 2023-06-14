@@ -5,7 +5,7 @@ phases:
       nodejs: 16
   pre_build:
     commands:
-      - npm install
+      - npm install --prefix frontend
       - bash buildspec/install.awscliv2.sh
   build:
     commands:

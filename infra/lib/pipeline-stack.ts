@@ -68,7 +68,7 @@ export class PipelineStack extends Stack {
     // Role for attaching to source action
     const codecommitRole = new iam.Role(this, "CodecommitRole", {
       roleName: `${serviceName}-codecommit-role`,
-      assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
+      assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${Stack.of(this).account}:root`),
     });
 
     // Role for attaching to codebuild project
@@ -282,7 +282,7 @@ export class PipelineStack extends Stack {
 
     // Create frontend pipeline
     const frontendPipeline = new codepipeline.Pipeline(this, "Pipeline", {
-      pipelineName: `${serviceName}-pipeline`,
+      pipelineName: `${serviceName}-frontend-pipeline`,
       role: codepipelineRole,
       artifactBucket: artifactBucket,
       stages: [

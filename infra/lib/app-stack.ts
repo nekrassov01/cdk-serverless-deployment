@@ -398,7 +398,7 @@ export class AppStack extends Stack {
       actions: ["s3:GetObject"],
     });
     hostingBucketPolicyStatement.addCondition("StringEquals", {
-      "AWS:SourceAccount": this.account,
+      "AWS:SourceAccount": Stack.of(this).account,
     });
 
     // Add bucket policy to hosting bucket
