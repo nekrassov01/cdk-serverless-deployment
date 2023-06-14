@@ -47,6 +47,7 @@
     "serviceName": "app",
     "environmentName": "dev",
     "branch": "feature",
+    "repositoryName": "your-repository-name",
     "domain": "your-domain.com",
     "webAclArn": "dummy-arn",
     "functionAlias": "live"

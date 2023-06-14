@@ -23,6 +23,7 @@ const app = new App();
 const serviceName = app.node.tryGetContext("serviceName");
 const environmentName = app.node.tryGetContext("environmentName");
 const branch = app.node.tryGetContext("branch");
+const repositoryName = app.node.tryGetContext("repositoryName");
 const email = app.node.tryGetContext("email");
 const hostedZoneName = app.node.tryGetContext("domain");
 const domainName = `${serviceName}.${hostedZoneName}`;
@@ -136,11 +137,7 @@ export class PipelineStack extends Stack {
     const deployOutput = new codepipeline.Artifact(deployStageName);
 
     // Retrieve existing repository
-    const codeCommitRepository = codecommit.Repository.fromRepositoryName(
-      this,
-      "CodeCommitRepository",
-      "react-deployment-sample"
-    );
+    const codeCommitRepository = codecommit.Repository.fromRepositoryName(this, "CodeCommitRepository", repositoryName);
 
     // Create codebuild project for react build
     const buildStage = new codebuild.PipelineProject(this, "BuildStage", {
