@@ -29,7 +29,6 @@ else
 fi
 
 npm install
-npx cdk synth "$2"
 npx cdk deploy "$2" --require-approval never
 
 echo "SUCCESS: ""$2"" deploying completed successfully."
