@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { App, Tags } from "aws-cdk-lib";
 import "source-map-support/register";
-import { AppStack } from "../lib/app-stack";
+import { ApiStack } from "../lib/api-stack";
 import { CertificateStack } from "../lib/certificate-stack";
+import { HostingStack } from "../lib/hosting-stack";
 import { Item1FunctionStack } from "../lib/item1-function-stack";
 import { Item1FunctionStackV2 } from "../lib/item1-function-stack-v2";
 import { Item2FunctionStack } from "../lib/item2-function-stack";
@@ -36,7 +37,11 @@ const item2FunctionStackV2 = new Item2FunctionStackV2(app, "Item2FunctionStackV2
   env: env,
   terminationProtection: false,
 });
-const appStack = new AppStack(app, "AppStack", {
+const apiStack = new ApiStack(app, "ApiStack", {
+  env: env,
+  terminationProtection: false,
+});
+const hostingStack = new HostingStack(app, "HostingStack", {
   env: env,
   terminationProtection: false,
 });
@@ -46,12 +51,13 @@ const pipelineStack = new PipelineStack(app, "PipelineStack", {
 });
 
 // Add dependencies among stacks
-appStack.addDependency(certificateStack);
-appStack.addDependency(item1FunctionStack);
-appStack.addDependency(item2FunctionStack);
-appStack.addDependency(item1FunctionStackV2);
-appStack.addDependency(item2FunctionStackV2);
-pipelineStack.addDependency(appStack);
+apiStack.addDependency(item1FunctionStack);
+apiStack.addDependency(item2FunctionStack);
+apiStack.addDependency(item1FunctionStackV2);
+apiStack.addDependency(item2FunctionStackV2);
+hostingStack.addDependency(certificateStack);
+hostingStack.addDependency(apiStack);
+pipelineStack.addDependency(hostingStack);
 
 // Tagging all resources
 Tags.of(app).add("Owner", app.node.tryGetContext("owner"));

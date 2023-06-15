@@ -5,12 +5,9 @@ import {
   Stack,
   StackProps,
   aws_certificatemanager as acm,
-  aws_apigateway as apigw,
   aws_cloudfront as cloudfront,
   aws_cloudfront_origins as cloudfront_origins,
   aws_iam as iam,
-  aws_lambda as lambda,
-  aws_logs as logs,
   aws_route53 as route53,
   aws_route53_targets as route53_targets,
   aws_s3 as s3,
@@ -27,7 +24,7 @@ const hostedZoneName = app.node.tryGetContext("domain");
 const domainName = `${serviceName}.${hostedZoneName}`;
 const webAclArn = app.node.tryGetContext("webAclArn");
 
-export class AppStack extends Stack {
+export class HostingStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
@@ -42,6 +39,11 @@ export class AppStack extends Stack {
       ssm.ParameterValueType.STRING
     );
 
+    // Get route53 hosted zone
+    const hostedZone = route53.HostedZone.fromLookup(this, "HostedZone", {
+      domainName: hostedZoneName,
+    });
+
     // Get certificate ARN from SSM parameter store
     const certificateArn = ssm.StringParameter.valueForTypedStringParameterV2(
       this,
@@ -50,209 +52,17 @@ export class AppStack extends Stack {
     );
     const certificate = acm.Certificate.fromCertificateArn(this, "Certificate", certificateArn);
 
-    // Get route53 hosted zone
-    const hostedZone = route53.HostedZone.fromLookup(this, "HostedZone", {
-      domainName: hostedZoneName,
-    });
-
-    // Get function: v1, item1
-    const item1FunctionArn = ssm.StringParameter.valueForTypedStringParameterV2(
+    // Get rest api from SSM parameter store
+    const apiId = ssm.StringParameter.valueForTypedStringParameterV2(
       this,
-      `/${serviceName}/${environmentName}/${branch}/lambda/v1/item1`,
+      `/${serviceName}/${environmentName}/${branch}/apigateway/api-id`,
       ssm.ParameterValueType.STRING
     );
-    const item1Function = lambda.Function.fromFunctionArn(this, "Item1FunctionArn", item1FunctionArn);
-
-    // Get function: v1, item2
-    const item2FunctionArn = ssm.StringParameter.valueForTypedStringParameterV2(
+    const apiStageName = ssm.StringParameter.valueForTypedStringParameterV2(
       this,
-      `/${serviceName}/${environmentName}/${branch}/lambda/v1/item2`,
+      `/${serviceName}/${environmentName}/${branch}/apigateway/stage`,
       ssm.ParameterValueType.STRING
     );
-    const item2Function = lambda.Function.fromFunctionArn(this, "Item2FunctionArn", item2FunctionArn);
-
-    // Get function: v2, item1
-    const item1FunctionArnV2 = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      `/${serviceName}/${environmentName}/${branch}/lambda/v2/item1`,
-      ssm.ParameterValueType.STRING
-    );
-    const item1FunctionV2 = lambda.Function.fromFunctionArn(this, "Item1FunctionArnV2", item1FunctionArnV2);
-
-    // Get function: v2, item2
-    const item2FunctionArnV2 = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      `/${serviceName}/${environmentName}/${branch}/lambda/v2/item2`,
-      ssm.ParameterValueType.STRING
-    );
-    const item2FunctionV2 = lambda.Function.fromFunctionArn(this, "Item2FunctionArnV2", item2FunctionArnV2);
-
-    /**
-     * API Gateway
-     */
-
-    const stageName = "default";
-
-    // Create log group for API Gateway
-    const apiLogGroup = new logs.LogGroup(this, "ApiLogGroup", {
-      logGroupName: `${serviceName}/apigateway/${stageName}/log`,
-      removalPolicy: RemovalPolicy.DESTROY,
-      retention: logs.RetentionDays.THREE_DAYS,
-    });
-
-    // Create REST API
-    const api = new apigw.RestApi(this, "RestApi", {
-      restApiName: `${serviceName}-rest-api`,
-      description: `Rest API for ${serviceName}`,
-      deploy: true,
-      retainDeployments: true,
-      deployOptions: {
-        stageName: stageName,
-        description: `Rest API default stage for ${serviceName}`,
-        documentationVersion: undefined,
-        accessLogDestination: new apigw.LogGroupLogDestination(apiLogGroup),
-        accessLogFormat: apigw.AccessLogFormat.jsonWithStandardFields(),
-        cachingEnabled: false,
-        cacheClusterEnabled: false,
-        cacheClusterSize: undefined,
-        cacheTtl: undefined,
-        cacheDataEncrypted: undefined,
-        metricsEnabled: true,
-        tracingEnabled: false,
-        dataTraceEnabled: true, // Not recommended for production
-        loggingLevel: apigw.MethodLoggingLevel.INFO,
-        throttlingBurstLimit: undefined,
-        throttlingRateLimit: undefined,
-        clientCertificateId: undefined,
-        methodOptions: undefined,
-        variables: undefined,
-      },
-      defaultIntegration: undefined,
-      defaultMethodOptions: undefined,
-      defaultCorsPreflightOptions: undefined,
-      disableExecuteApiEndpoint: false,
-      cloudWatchRole: true,
-      //domainName: {
-      //  domainName: apiDomainName,
-      //  certificate: certificate,
-      //  basePath: undefined,
-      //  endpointType: apigw.EndpointType.EDGE,
-      //  securityPolicy: apigw.SecurityPolicy.TLS_1_2,
-      //  mtls: undefined,
-      //},
-      endpointTypes: [apigw.EndpointType.EDGE],
-      endpointConfiguration: undefined,
-      endpointExportName: undefined,
-      failOnWarnings: true,
-      minCompressionSize: undefined,
-      apiKeySourceType: undefined,
-      binaryMediaTypes: undefined,
-      cloneFrom: undefined,
-      parameters: undefined,
-    });
-
-    // Define default lambda integration options
-    const defaultIntegrationOptions: apigw.LambdaIntegrationOptions = {
-      allowTestInvoke: true,
-      cacheKeyParameters: undefined,
-      cacheNamespace: undefined,
-      connectionType: apigw.ConnectionType.INTERNET,
-      contentHandling: undefined,
-      credentialsPassthrough: undefined,
-      credentialsRole: undefined,
-      integrationResponses: [
-        {
-          statusCode: "200",
-          responseParameters: {
-            "method.response.header.Access-Control-Allow-Headers":
-              "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
-            "method.response.header.Access-Control-Allow-Origin": "'*'",
-            "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST,GET,PUT,DELETE'",
-          },
-        },
-      ],
-      passthroughBehavior: apigw.PassthroughBehavior.WHEN_NO_MATCH,
-      proxy: true,
-      requestParameters: undefined,
-      requestTemplates: undefined,
-      timeout: undefined,
-      vpcLink: undefined,
-    };
-
-    const defaultMethodresponse: apigw.MethodResponse = {
-      statusCode: "200",
-      responseParameters: {
-        "method.response.header.Access-Control-Allow-Headers": true,
-        "method.response.header.Access-Control-Allow-Methods": true,
-        "method.response.header.Access-Control-Allow-Origin": true,
-      },
-    };
-
-    //const base = api.root.addResource("api");
-
-    // Create api resources: v1
-    const v1 = api.root.addResource("v1");
-    const items = v1.addResource("items");
-    const item1 = items.addResource("item1");
-    item1.addMethod("GET", new apigw.LambdaIntegration(item1Function, defaultIntegrationOptions), {
-      methodResponses: [defaultMethodresponse],
-    });
-    const item2 = items.addResource("item2");
-    item2.addMethod("GET", new apigw.LambdaIntegration(item2Function, defaultIntegrationOptions), {
-      methodResponses: [defaultMethodresponse],
-    });
-
-    // Create api resources: v2
-    const v2 = api.root.addResource("v2");
-    const itemsV2 = v2.addResource("items");
-    const item1V2 = itemsV2.addResource("item1");
-    item1V2.addMethod("GET", new apigw.LambdaIntegration(item1FunctionV2, defaultIntegrationOptions), {
-      methodResponses: [defaultMethodresponse],
-    });
-    const item2V2 = itemsV2.addResource("item2");
-    item2V2.addMethod("GET", new apigw.LambdaIntegration(item2FunctionV2, defaultIntegrationOptions), {
-      methodResponses: [defaultMethodresponse],
-    });
-
-    // Create function permission for api `v1/items/item1/`
-    new lambda.CfnPermission(this, "Item1Permission", {
-      action: "lambda:InvokeFunction",
-      functionName: item1FunctionArn,
-      principal: "apigateway.amazonaws.com",
-      sourceArn: api.arnForExecuteApi("GET", "/v1/items/item1", api.deploymentStage.stageName),
-    });
-
-    // Create function permission for api `v1/items/item2/`
-    new lambda.CfnPermission(this, "Item2Permission", {
-      action: "lambda:InvokeFunction",
-      functionName: item2FunctionArn,
-      principal: "apigateway.amazonaws.com",
-      sourceArn: api.arnForExecuteApi("GET", "/v1/items/item2", api.deploymentStage.stageName),
-    });
-
-    // Create function permission for api `v2/items/item1/`
-    new lambda.CfnPermission(this, "Item1PermissionV2", {
-      action: "lambda:InvokeFunction",
-      functionName: item1FunctionArnV2,
-      principal: "apigateway.amazonaws.com",
-      sourceArn: api.arnForExecuteApi("GET", "/v2/items/item1", api.deploymentStage.stageName),
-    });
-
-    // Create function permission for api `v2/items/item2/`
-    new lambda.CfnPermission(this, "Item2PermissionV2", {
-      action: "lambda:InvokeFunction",
-      functionName: item2FunctionArnV2,
-      principal: "apigateway.amazonaws.com",
-      sourceArn: api.arnForExecuteApi("GET", "/v2/items/item2", api.deploymentStage.stageName),
-    });
-
-    //// Alias record for apigateway
-    //const apiARecord = new route53.ARecord(this, "ApiARecord", {
-    //  recordName: apiDomainName,
-    //  target: route53.RecordTarget.fromAlias(new route53_targets.ApiGatewayDomain(api.domainName!)),
-    //  zone: hostedZone,
-    //});
-    //apiARecord.node.addDependency(api);
 
     /**
      * Hosting bucket
@@ -346,14 +156,17 @@ export class AppStack extends Stack {
         smoothStreaming: false,
       },
       additionalBehaviors: {
-        [`/${stageName}/*`]: {
-          origin: new cloudfront_origins.RestApiOrigin(api, {
-            originPath: undefined,
-            connectionAttempts: 3,
-            connectionTimeout: Duration.seconds(10),
-            readTimeout: Duration.seconds(30),
-            keepaliveTimeout: Duration.seconds(5),
-          }),
+        [`/${apiStageName}/*`]: {
+          origin: new cloudfront_origins.HttpOrigin(
+            `${apiId}.execute-api.${Stack.of(this).region}.${Stack.of(this).urlSuffix}`,
+            {
+              originPath: undefined,
+              connectionAttempts: 3,
+              connectionTimeout: Duration.seconds(10),
+              readTimeout: Duration.seconds(30),
+              keepaliveTimeout: Duration.seconds(5),
+            }
+          ),
           compress: false,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
@@ -441,12 +254,6 @@ export class AppStack extends Stack {
     new ssm.StringParameter(this, "HostingBucketParameter", {
       parameterName: `/${serviceName}/${environmentName}/${branch}/s3/hosting-bucket`,
       stringValue: hostingBucket.bucketName,
-    });
-
-    // Put api domainName/stageName to SSM parameter store
-    new ssm.StringParameter(this, "RestApiParameter", {
-      parameterName: `/${serviceName}/${environmentName}/${branch}/apigateway/stage`,
-      stringValue: api.deploymentStage.stageName,
     });
   }
 }

@@ -5,11 +5,11 @@ phases:
       - bash scripts/build/bin/install.awscliv2.sh
   build:
     commands:
-      - bash scripts/build/bin/s3.deploy.sh ./frontend/build/
-      - bash scripts/build/bin/cfcd.deploy.sh
+      - bash scripts/build/bin/frontend.deploy.s3.sh ./frontend/build/
+      - bash scripts/build/bin/frontend.deploy.cfcd.sh
   post_build:
     commands:
-      - bash scripts/build/bin/cfcd.invalidate.sh
+      - bash scripts/build/bin/frontend.invalidate.sh
 artifacts:
   files:
     - "**/*"

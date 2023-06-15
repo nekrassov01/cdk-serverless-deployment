@@ -5,8 +5,8 @@ phases:
       - bash scripts/build/bin/install.awscliv2.sh
   build:
     commands:
-      - bash scripts/build/bin/cfcd.promote.sh
-      - bash scripts/build/bin/cfcd.invalidate.sh
+      - bash scripts/build/bin/frontend.promote.sh
+      - bash scripts/build/bin/frontend.invalidate.sh
   post_build:
     commands:
-      - bash scripts/build/bin/cfcd.cleanup.sh
+      - bash scripts/build/bin/frontend.cleanup.sh

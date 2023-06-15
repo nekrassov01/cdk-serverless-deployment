@@ -5,4 +5,4 @@ phases:
       - bash scripts/build/bin/install.awscliv2.sh
   build:
     commands:
-      - bash scripts/build/bin/cfcd.cleanup.sh
+      - bash scripts/build/bin/frontend.cleanup.sh

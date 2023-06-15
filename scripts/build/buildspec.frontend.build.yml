@@ -8,7 +8,7 @@ phases:
       - bash scripts/build/bin/install.awscliv2.sh
   build:
     commands:
-      - bash scripts/build/bin/s3.build.sh frontend
+      - bash scripts/build/bin/frontend.build.sh frontend
 artifacts:
   files:
     - "**/*"
