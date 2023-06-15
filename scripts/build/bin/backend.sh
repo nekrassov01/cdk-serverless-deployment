@@ -22,7 +22,7 @@ echo "PROCESS: Deploying lambda function stack."
 cd "$1"
 npm install
 npx cdk synth "$2"
-npx cdk deploy "$2"
+npx cdk deploy "$2" --app cdk.public.json --require-approval never
 
 echo "SUCCESS: ""$2"" deploying completed successfully."
 exit 0

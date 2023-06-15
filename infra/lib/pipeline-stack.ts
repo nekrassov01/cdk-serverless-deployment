@@ -151,7 +151,6 @@ export class PipelineStack extends Stack {
         BRANCH: { value: branch },
         REACT_APP_BACKEND_DOMAIN_NAME: { value: domainName },
         REACT_APP_BACKEND_STAGE_NAME: { value: apiStageName },
-        REACT_APP_FRONTEND_VERSION: { value: "" },
       },
       badge: false,
       role: codebuildRole,

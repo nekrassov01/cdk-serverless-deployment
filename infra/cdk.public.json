@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/cdk-serverless.ts",
+  "app": "npx ts-node --prefer-ts-exts bin/main.ts",
   "watch": {
     "include": ["**"],
     "exclude": [
@@ -42,14 +42,11 @@
     "@aws-cdk/aws-secretsmanager:useAttachedSecretResourcePolicyForSecretTargetAttachments": true,
     "@aws-cdk/aws-redshift:columnId": true,
 
-    "owner": "user",
-    "serviceName": "app",
+    "owner": "kawashima",
+    "serviceName": "cfcd-test",
     "environmentName": "dev",
-    "repositoryName": "your-repository-name",
+    "repositoryName": "cdk-serverless-deployment",
     "branch": "feature",
-    "functionAlias": "live",
-    "email": "user@your-domain.com",
-    "domain": "your-domain.com",
-    "webAclArn": "dummy-arn"
+    "functionAlias": "live"
   }
 }
