@@ -20,9 +20,17 @@ done
 echo "PROCESS: Deploying lambda function stack."
 
 cd "$1"
+
+if [[ ! -f cdk.json && -f cdk.public.json ]]; then
+  mv cdk.public.json cdk.json
+else
+  echo "Required cdk.public.json"
+  exit 1
+fi
+
 npm install
 npx cdk synth "$2"
-npx cdk deploy "$2" --app cdk.public.json --require-approval never
+npx cdk deploy "$2" --require-approval never
 
 echo "SUCCESS: ""$2"" deploying completed successfully."
 exit 0
