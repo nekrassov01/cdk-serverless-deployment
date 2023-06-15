@@ -354,5 +354,88 @@ export class PipelineStack extends Stack {
       },
       targets: [new events_targets.CodeBuildProject(cleanupProject)],
     });
+
+    /**
+     * Lambda function test
+     */
+
+    const lambdaRole = new iam.Role(this, "CodeBuildServiceRole", {
+      assumedBy: new iam.ServicePrincipal("codebuild.amazonaws.com"),
+      path: "/",
+      inlinePolicies: {
+        codeBuildServicePolicies: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ["cloudformation:*"],
+              resources: [`arn:aws:cloudformation:${this.region}:${this.account}:stack/*`],
+            }),
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ["ssm:GetParameter"],
+              resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/cdk-bootstrap/*`],
+            }),
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ["s3:*"],
+              resources: [
+                `arn:aws:s3:::cdk-*-assets-${this.account}-${this.region}`,
+                `arn:aws:s3:::cdk-*-assets-${this.account}-${this.region}/*`,
+                "arn:aws:s3:::cdktoolkit-stagingbucket-*",
+              ],
+            }),
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ["iam:PassRole"],
+              resources: [`arn:aws:iam::${this.account}:role/cdk-*-role-${this.account}-${this.region}`],
+            }),
+          ],
+        }),
+      },
+    });
+
+    const lambdaProject = new codebuild.PipelineProject(this, "CodeBuildDeployProject", {
+      projectName: `${serviceName}-lambda-project`,
+      buildSpec: codebuild.BuildSpec.fromSourceFilename("scripts/build/buildspec.backend.yml"),
+      environment: {
+        buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
+      },
+      environmentVariables: {
+        SERVICE_NAME: { value: serviceName },
+        ENVIRONMENT_NAME: { value: environmentName },
+        BRANCH: { value: branch },
+      },
+      badge: false,
+      role: lambdaRole,
+      logging: {
+        cloudWatch: {
+          logGroup: new logs.LogGroup(this, "LambdaProjectLogGroup", {
+            logGroupName: `${serviceName}/lambda-stage`,
+            removalPolicy: RemovalPolicy.DESTROY,
+            retention: logs.RetentionDays.THREE_DAYS,
+          }),
+        },
+      },
+    });
+
+    const lambdaAction = new codepipeline_actions.CodeBuildAction({
+      actionName: "deploy",
+      project: lambdaProject,
+      input: sourceOutput,
+    });
+
+    new codepipeline.Pipeline(this, "DeployPipeline", {
+      pipelineName: `${serviceName}-lambda-pipeline`,
+      stages: [
+        {
+          stageName: sourceStageName,
+          actions: [sourceAction],
+        },
+        {
+          stageName: deployStageName,
+          actions: [lambdaAction],
+        },
+      ],
+    });
   }
 }

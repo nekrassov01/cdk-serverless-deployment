@@ -1,0 +1,11 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - bash scripts/build/bin/install.awscliv2.sh
+  build:
+    commands:
+      - bash scripts/build/bin/backend.sh infra Item1FunctionStack
+artifacts:
+  files:
+    - "**/*"
