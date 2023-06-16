@@ -29,6 +29,7 @@ const domainName = `${serviceName}.${hostedZoneName}`;
 const functionBucketName = app.node.tryGetContext("functionBucketName");
 const functionAlias = app.node.tryGetContext("functionAlias");
 const functionPackageName = app.node.tryGetContext("functionPackageName");
+const apiDefaultStageName = app.node.tryGetContext("apiDefaultStageName");
 
 const sourceStageName = "Source";
 const buildStageName = "Build";
@@ -44,13 +45,6 @@ export class PipelineStack extends Stack {
     const bucketName = ssm.StringParameter.valueForTypedStringParameterV2(
       this,
       `/${serviceName}/${environmentName}/${branch}/s3/hosting-bucket`,
-      ssm.ParameterValueType.STRING
-    );
-
-    // Get api stage name from SSM parameter store
-    const apiStageName = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      `/${serviceName}/${environmentName}/${branch}/apigateway/stage`,
       ssm.ParameterValueType.STRING
     );
 
@@ -153,7 +147,7 @@ export class PipelineStack extends Stack {
         ENVIRONMENT_NAME: { value: environmentName },
         BRANCH: { value: branch },
         REACT_APP_BACKEND_DOMAIN_NAME: { value: domainName },
-        REACT_APP_BACKEND_STAGE_NAME: { value: apiStageName },
+        REACT_APP_BACKEND_STAGE_NAME: { value: apiDefaultStageName },
       },
       badge: false,
       role: codebuildRole,
