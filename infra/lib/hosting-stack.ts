@@ -23,6 +23,7 @@ const branch = app.node.tryGetContext("branch");
 const hostedZoneName = app.node.tryGetContext("domain");
 const domainName = `${serviceName}.${hostedZoneName}`;
 const webAclArn = app.node.tryGetContext("webAclArn");
+const apiDefaultStageName = app.node.tryGetContext("apiDefaultStageName");
 
 export class HostingStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -55,12 +56,7 @@ export class HostingStack extends Stack {
     // Get rest api from SSM parameter store
     const apiId = ssm.StringParameter.valueForTypedStringParameterV2(
       this,
-      `/${serviceName}/${environmentName}/${branch}/apigateway/api-id`,
-      ssm.ParameterValueType.STRING
-    );
-    const apiStageName = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      `/${serviceName}/${environmentName}/${branch}/apigateway/stage`,
+      `/${serviceName}/${environmentName}/${branch}/apigateway/api`,
       ssm.ParameterValueType.STRING
     );
 
@@ -156,17 +152,14 @@ export class HostingStack extends Stack {
         smoothStreaming: false,
       },
       additionalBehaviors: {
-        [`/${apiStageName}/*`]: {
-          origin: new cloudfront_origins.HttpOrigin(
-            `${apiId}.execute-api.${Stack.of(this).region}.${Stack.of(this).urlSuffix}`,
-            {
-              originPath: undefined,
-              connectionAttempts: 3,
-              connectionTimeout: Duration.seconds(10),
-              readTimeout: Duration.seconds(30),
-              keepaliveTimeout: Duration.seconds(5),
-            }
-          ),
+        [`/${apiDefaultStageName}/*`]: {
+          origin: new cloudfront_origins.HttpOrigin(`${apiId}.execute-api.${this.region}.${this.urlSuffix}`, {
+            originPath: undefined,
+            connectionAttempts: 3,
+            connectionTimeout: Duration.seconds(10),
+            readTimeout: Duration.seconds(30),
+            keepaliveTimeout: Duration.seconds(5),
+          }),
           compress: false,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
@@ -211,7 +204,7 @@ export class HostingStack extends Stack {
       actions: ["s3:GetObject"],
     });
     hostingBucketPolicyStatement.addCondition("StringEquals", {
-      "AWS:SourceAccount": Stack.of(this).account,
+      "AWS:SourceAccount": this.account,
     });
 
     // Add bucket policy to hosting bucket

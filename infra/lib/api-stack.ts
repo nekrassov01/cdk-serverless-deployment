@@ -15,56 +15,86 @@ const app = new App();
 const serviceName = app.node.tryGetContext("serviceName");
 const environmentName = app.node.tryGetContext("environmentName");
 const branch = app.node.tryGetContext("branch");
+const functionBucket = app.node.tryGetContext("functionBucket");
+const functionAlias = app.node.tryGetContext("functionAlias");
+const functionPackageName = app.node.tryGetContext("functionPackageName");
+const apiDefaultStageName = app.node.tryGetContext("apiDefaultStageName");
 
 export class ApiStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    /**
-     * Get parameters
-     */
+    // v1/items/item1
+    const item1Function = new lambda.Function(this, "Item1Function", {
+      functionName: `${serviceName}-item1`,
+      code: lambda.Code.fromBucket(functionBucket, `backend/item1/${functionPackageName}`),
+      handler: "index.handler",
+      runtime: lambda.Runtime.NODEJS_18_X,
+      architecture: lambda.Architecture.X86_64,
+      currentVersionOptions: {
+        removalPolicy: RemovalPolicy.RETAIN,
+      },
+    });
+    const item1FunctionAlias = new lambda.Alias(this, "Item1FunctionAlias", {
+      aliasName: functionAlias,
+      version: item1Function.currentVersion,
+    });
 
-    // Get function: v1, item1
-    const item1FunctionArn = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      `/${serviceName}/${environmentName}/${branch}/lambda/v1/item1`,
-      ssm.ParameterValueType.STRING
-    );
-    const item1Function = lambda.Function.fromFunctionArn(this, "Item1FunctionArn", item1FunctionArn);
+    // v1/items/item2
+    const item2Function = new lambda.Function(this, "Item2Function", {
+      functionName: `${serviceName}-item2`,
+      code: lambda.Code.fromBucket(functionBucket, `backend/item2/${functionPackageName}`),
+      handler: "index.handler",
+      runtime: lambda.Runtime.NODEJS_18_X,
+      architecture: lambda.Architecture.X86_64,
+      currentVersionOptions: {
+        removalPolicy: RemovalPolicy.RETAIN,
+      },
+    });
+    const item2FunctionAlias = new lambda.Alias(this, "Item2FunctionAlias", {
+      aliasName: functionAlias,
+      version: item2Function.currentVersion,
+    });
 
-    // Get function: v1, item2
-    const item2FunctionArn = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      `/${serviceName}/${environmentName}/${branch}/lambda/v1/item2`,
-      ssm.ParameterValueType.STRING
-    );
-    const item2Function = lambda.Function.fromFunctionArn(this, "Item2FunctionArn", item2FunctionArn);
+    // v2/items/item1
+    const item1FunctionV2 = new lambda.Function(this, "Item1FunctionV2", {
+      functionName: `${serviceName}-item1-v2`,
+      code: lambda.Code.fromBucket(functionBucket, `backend-v2/item1/${functionPackageName}`),
+      handler: "index.handler",
+      runtime: lambda.Runtime.NODEJS_18_X,
+      architecture: lambda.Architecture.X86_64,
+      currentVersionOptions: {
+        removalPolicy: RemovalPolicy.RETAIN,
+      },
+    });
+    const item1FunctionV2Alias = new lambda.Alias(this, "Item1FunctionV2Alias", {
+      aliasName: functionAlias,
+      version: item1FunctionV2.currentVersion,
+    });
 
-    // Get function: v2, item1
-    const item1FunctionArnV2 = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      `/${serviceName}/${environmentName}/${branch}/lambda/v2/item1`,
-      ssm.ParameterValueType.STRING
-    );
-    const item1FunctionV2 = lambda.Function.fromFunctionArn(this, "Item1FunctionArnV2", item1FunctionArnV2);
-
-    // Get function: v2, item2
-    const item2FunctionArnV2 = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      `/${serviceName}/${environmentName}/${branch}/lambda/v2/item2`,
-      ssm.ParameterValueType.STRING
-    );
-    const item2FunctionV2 = lambda.Function.fromFunctionArn(this, "Item2FunctionArnV2", item2FunctionArnV2);
+    // v2/items/item2
+    const item2FunctionV2 = new lambda.Function(this, "Item2FunctionV2", {
+      functionName: `${serviceName}-item2-v2`,
+      code: lambda.Code.fromBucket(functionBucket, `backend-v2/item2/${functionPackageName}`),
+      handler: "index.handler",
+      runtime: lambda.Runtime.NODEJS_18_X,
+      architecture: lambda.Architecture.X86_64,
+      currentVersionOptions: {
+        removalPolicy: RemovalPolicy.RETAIN,
+      },
+    });
+    const item2FunctionV2Alias = new lambda.Alias(this, "Item2FunctionV2Alias", {
+      aliasName: functionAlias,
+      version: item2FunctionV2.currentVersion,
+    });
 
     /**
      * API Gateway
      */
 
-    const stageName = "default";
-
     // Create log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, "ApiLogGroup", {
-      logGroupName: `${serviceName}/apigateway/${stageName}/log`,
+      logGroupName: `${serviceName}/apigateway/${apiDefaultStageName}/log`,
       removalPolicy: RemovalPolicy.DESTROY,
       retention: logs.RetentionDays.THREE_DAYS,
     });
@@ -76,7 +106,7 @@ export class ApiStack extends Stack {
       deploy: true,
       retainDeployments: true,
       deployOptions: {
-        stageName: stageName,
+        stageName: apiDefaultStageName,
         description: `Rest API default stage for ${serviceName}`,
         documentationVersion: undefined,
         accessLogDestination: new apig.LogGroupLogDestination(apiLogGroup),
@@ -186,7 +216,7 @@ export class ApiStack extends Stack {
     // Create function permission for api `v1/items/item1/`
     new lambda.CfnPermission(this, "Item1Permission", {
       action: "lambda:InvokeFunction",
-      functionName: item1FunctionArn,
+      functionName: item1FunctionAlias.functionArn,
       principal: "apigateway.amazonaws.com",
       sourceArn: api.arnForExecuteApi("GET", "/v1/items/item1", api.deploymentStage.stageName),
     });
@@ -194,7 +224,7 @@ export class ApiStack extends Stack {
     // Create function permission for api `v1/items/item2/`
     new lambda.CfnPermission(this, "Item2Permission", {
       action: "lambda:InvokeFunction",
-      functionName: item2FunctionArn,
+      functionName: item2FunctionAlias.functionArn,
       principal: "apigateway.amazonaws.com",
       sourceArn: api.arnForExecuteApi("GET", "/v1/items/item2", api.deploymentStage.stageName),
     });
@@ -202,7 +232,7 @@ export class ApiStack extends Stack {
     // Create function permission for api `v2/items/item1/`
     new lambda.CfnPermission(this, "Item1PermissionV2", {
       action: "lambda:InvokeFunction",
-      functionName: item1FunctionArnV2,
+      functionName: item1FunctionV2Alias.functionArn,
       principal: "apigateway.amazonaws.com",
       sourceArn: api.arnForExecuteApi("GET", "/v2/items/item1", api.deploymentStage.stageName),
     });
@@ -210,7 +240,7 @@ export class ApiStack extends Stack {
     // Create function permission for api `v2/items/item2/`
     new lambda.CfnPermission(this, "Item2PermissionV2", {
       action: "lambda:InvokeFunction",
-      functionName: item2FunctionArnV2,
+      functionName: item2FunctionV2Alias.functionArn,
       principal: "apigateway.amazonaws.com",
       sourceArn: api.arnForExecuteApi("GET", "/v2/items/item2", api.deploymentStage.stageName),
     });
@@ -225,12 +255,8 @@ export class ApiStack extends Stack {
 
     // Put rest api to SSM parameter store
     new ssm.StringParameter(this, "RestApiIdParameter", {
-      parameterName: `/${serviceName}/${environmentName}/${branch}/apigateway/api-id`,
+      parameterName: `/${serviceName}/${environmentName}/${branch}/apigateway/api`,
       stringValue: api.restApiId,
-    });
-    new ssm.StringParameter(this, "RestApiStageParameter", {
-      parameterName: `/${serviceName}/${environmentName}/${branch}/apigateway/stage`,
-      stringValue: api.deploymentStage.stageName,
     });
   }
 }

@@ -26,6 +26,9 @@ const repositoryName = app.node.tryGetContext("repositoryName");
 const email = app.node.tryGetContext("email");
 const hostedZoneName = app.node.tryGetContext("domain");
 const domainName = `${serviceName}.${hostedZoneName}`;
+const functionBucket = app.node.tryGetContext("functionBucket");
+const functionAlias = app.node.tryGetContext("functionAlias");
+const functionPackageName = app.node.tryGetContext("functionPackageName");
 
 const sourceStageName = "Source";
 const buildStageName = "Build";
@@ -67,7 +70,7 @@ export class PipelineStack extends Stack {
     // Role for attaching to source action
     const codecommitRole = new iam.Role(this, "CodecommitRole", {
       roleName: `${serviceName}-codecommit-role`,
-      assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${Stack.of(this).account}:root`),
+      assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
     });
 
     // Role for attaching to codebuild project
@@ -79,7 +82,7 @@ export class PipelineStack extends Stack {
           statements: [
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
-              actions: ["s3:*", "ssm:*", "cloudfront:*", "wafv2:*"],
+              actions: ["s3:*", "ssm:*", "cloudfront:*", "wafv2:*", "lambda:*"],
               resources: ["*"],
             }),
           ],
@@ -358,41 +361,6 @@ export class PipelineStack extends Stack {
      * Lambda function test
      */
 
-    const lambdaRole = new iam.Role(this, "CodeBuildServiceRole", {
-      assumedBy: new iam.ServicePrincipal("codebuild.amazonaws.com"),
-      path: "/",
-      inlinePolicies: {
-        codeBuildServicePolicies: new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ["cloudformation:*"],
-              resources: [`arn:aws:cloudformation:${this.region}:${this.account}:stack/*`],
-            }),
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ["ssm:GetParameter"],
-              resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/cdk-bootstrap/*`],
-            }),
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ["s3:*"],
-              resources: [
-                `arn:aws:s3:::cdk-*-assets-${this.account}-${this.region}`,
-                `arn:aws:s3:::cdk-*-assets-${this.account}-${this.region}/*`,
-                "arn:aws:s3:::cdktoolkit-stagingbucket-*",
-              ],
-            }),
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ["iam:PassRole"],
-              resources: [`arn:aws:iam::${this.account}:role/cdk-*-role-${this.account}-${this.region}`],
-            }),
-          ],
-        }),
-      },
-    });
-
     const lambdaProject = new codebuild.PipelineProject(this, "CodeBuildDeployProject", {
       projectName: `${serviceName}-lambda-project`,
       buildSpec: codebuild.BuildSpec.fromSourceFilename("scripts/build/buildspec.backend.yml"),
@@ -403,9 +371,14 @@ export class PipelineStack extends Stack {
         SERVICE_NAME: { value: serviceName },
         ENVIRONMENT_NAME: { value: environmentName },
         BRANCH: { value: branch },
+        BUCKET_NAME: { value: functionBucket },
+        BUCKET_PATH: { value: "backend/item1" },
+        FUNCTION_NAME: { value: `${serviceName}-item1` },
+        FUNCTION_ALIAS: { value: functionAlias },
+        FUNCTION_PACKAGE_NAME: { value: functionPackageName },
       },
       badge: false,
-      role: lambdaRole,
+      role: codebuildRole,
       logging: {
         cloudWatch: {
           logGroup: new logs.LogGroup(this, "LambdaProjectLogGroup", {
@@ -418,7 +391,7 @@ export class PipelineStack extends Stack {
     });
 
     const lambdaAction = new codepipeline_actions.CodeBuildAction({
-      actionName: "deploy",
+      actionName: deployStageName,
       project: lambdaProject,
       input: sourceOutput,
     });
