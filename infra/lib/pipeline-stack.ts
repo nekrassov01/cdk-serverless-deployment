@@ -26,7 +26,7 @@ const repositoryName = app.node.tryGetContext("repositoryName");
 const email = app.node.tryGetContext("email");
 const hostedZoneName = app.node.tryGetContext("domain");
 const domainName = `${serviceName}.${hostedZoneName}`;
-const functionBucket = app.node.tryGetContext("functionBucket");
+const functionBucketName = app.node.tryGetContext("functionBucketName");
 const functionAlias = app.node.tryGetContext("functionAlias");
 const functionPackageName = app.node.tryGetContext("functionPackageName");
 
@@ -371,7 +371,7 @@ export class PipelineStack extends Stack {
         SERVICE_NAME: { value: serviceName },
         ENVIRONMENT_NAME: { value: environmentName },
         BRANCH: { value: branch },
-        BUCKET_NAME: { value: functionBucket },
+        BUCKET_NAME: { value: functionBucketName },
         BUCKET_PATH: { value: "backend/item1" },
         FUNCTION_NAME: { value: `${serviceName}-item1` },
         FUNCTION_ALIAS: { value: functionAlias },

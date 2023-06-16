@@ -6,6 +6,7 @@ import {
   aws_apigateway as apig,
   aws_lambda as lambda,
   aws_logs as logs,
+  aws_s3 as s3,
   aws_ssm as ssm,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
@@ -15,7 +16,7 @@ const app = new App();
 const serviceName = app.node.tryGetContext("serviceName");
 const environmentName = app.node.tryGetContext("environmentName");
 const branch = app.node.tryGetContext("branch");
-const functionBucket = app.node.tryGetContext("functionBucket");
+const functionBucketName = app.node.tryGetContext("functionBucketName");
 const functionAlias = app.node.tryGetContext("functionAlias");
 const functionPackageName = app.node.tryGetContext("functionPackageName");
 const apiDefaultStageName = app.node.tryGetContext("apiDefaultStageName");
@@ -23,6 +24,9 @@ const apiDefaultStageName = app.node.tryGetContext("apiDefaultStageName");
 export class ApiStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
+
+    // Get interface of function bucket from bucket name
+    const functionBucket = s3.Bucket.fromBucketName(this, "FunctionBucket", functionBucketName);
 
     // v1/items/item1
     const item1Function = new lambda.Function(this, "Item1Function", {
