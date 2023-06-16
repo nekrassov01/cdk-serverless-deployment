@@ -197,11 +197,11 @@ export class ApiStack extends Stack {
     const v1 = api.root.addResource("v1");
     const items = v1.addResource("items");
     const item1 = items.addResource("item1");
-    item1.addMethod("GET", new apig.LambdaIntegration(item1Function, defaultIntegrationOptions), {
+    item1.addMethod("GET", new apig.LambdaIntegration(item1FunctionAlias, defaultIntegrationOptions), {
       methodResponses: [defaultMethodresponse],
     });
     const item2 = items.addResource("item2");
-    item2.addMethod("GET", new apig.LambdaIntegration(item2Function, defaultIntegrationOptions), {
+    item2.addMethod("GET", new apig.LambdaIntegration(item2FunctionAlias, defaultIntegrationOptions), {
       methodResponses: [defaultMethodresponse],
     });
 
@@ -209,11 +209,11 @@ export class ApiStack extends Stack {
     const v2 = api.root.addResource("v2");
     const itemsV2 = v2.addResource("items");
     const item1V2 = itemsV2.addResource("item1");
-    item1V2.addMethod("GET", new apig.LambdaIntegration(item1FunctionV2, defaultIntegrationOptions), {
+    item1V2.addMethod("GET", new apig.LambdaIntegration(item1FunctionV2Alias, defaultIntegrationOptions), {
       methodResponses: [defaultMethodresponse],
     });
     const item2V2 = itemsV2.addResource("item2");
-    item2V2.addMethod("GET", new apig.LambdaIntegration(item2FunctionV2, defaultIntegrationOptions), {
+    item2V2.addMethod("GET", new apig.LambdaIntegration(item2FunctionV2Alias, defaultIntegrationOptions), {
       methodResponses: [defaultMethodresponse],
     });
 

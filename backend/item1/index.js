@@ -1,4 +1,4 @@
-export const handler = async (event, context) => {
+exports.handler = async (event, context) => {
   const responseBody = {
     lambdaVersion: process.env.AWS_LAMBDA_FUNCTION_VERSION,
     apiVersion: "v1",
