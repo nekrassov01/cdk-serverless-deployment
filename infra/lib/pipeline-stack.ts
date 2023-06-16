@@ -17,6 +17,12 @@ import {
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
 
+interface IFunctionMap {
+  functionName: string;
+  bucketPath: string;
+  apiEndpoint: string;
+}
+
 const app = new App();
 
 const serviceName = app.node.tryGetContext("serviceName");
@@ -29,6 +35,7 @@ const domainName = `${serviceName}.${hostedZoneName}`;
 const functionBucketName = app.node.tryGetContext("functionBucketName");
 const functionAlias = app.node.tryGetContext("functionAlias");
 const functionPackageName = app.node.tryGetContext("functionPackageName");
+const functionMap: IFunctionMap[] = app.node.tryGetContext("functionMap");
 const apiDefaultStageName = app.node.tryGetContext("apiDefaultStageName");
 
 const sourceStageName = "Source";
@@ -352,56 +359,58 @@ export class PipelineStack extends Stack {
     });
 
     /**
-     * Lambda function test
+     * Lambda function deploy piopeline
      */
 
-    const lambdaProject = new codebuild.PipelineProject(this, "CodeBuildDeployProject", {
-      projectName: `${serviceName}-lambda-project`,
-      buildSpec: codebuild.BuildSpec.fromSourceFilename("scripts/build/buildspec.backend.yml"),
-      environment: {
-        buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
-      },
-      environmentVariables: {
-        SERVICE_NAME: { value: serviceName },
-        ENVIRONMENT_NAME: { value: environmentName },
-        BRANCH: { value: branch },
-        BUCKET_NAME: { value: functionBucketName },
-        BUCKET_PATH: { value: "backend/item1" },
-        FUNCTION_NAME: { value: `${serviceName}-item1` },
-        FUNCTION_ALIAS: { value: functionAlias },
-        FUNCTION_PACKAGE_NAME: { value: functionPackageName },
-      },
-      badge: false,
-      role: codebuildRole,
-      logging: {
-        cloudWatch: {
-          logGroup: new logs.LogGroup(this, "LambdaProjectLogGroup", {
-            logGroupName: `${serviceName}/lambda-stage`,
-            removalPolicy: RemovalPolicy.DESTROY,
-            retention: logs.RetentionDays.THREE_DAYS,
-          }),
+    for (const obj of functionMap) {
+      const functionDeployStage = new codebuild.PipelineProject(this, `${obj.functionName}-FunctionDeployStage`, {
+        projectName: `${serviceName}-${obj.functionName}-deploy-stage`,
+        buildSpec: codebuild.BuildSpec.fromSourceFilename("scripts/build/buildspec.backend.yml"),
+        environment: {
+          buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
         },
-      },
-    });
+        environmentVariables: {
+          SERVICE_NAME: { value: serviceName },
+          ENVIRONMENT_NAME: { value: environmentName },
+          BRANCH: { value: branch },
+          BUCKET_NAME: { value: functionBucketName },
+          BUCKET_PATH: { value: obj.bucketPath },
+          FUNCTION_NAME: { value: `${serviceName}-${obj.functionName}` },
+          FUNCTION_ALIAS: { value: functionAlias },
+          FUNCTION_PACKAGE_NAME: { value: functionPackageName },
+        },
+        badge: false,
+        role: codebuildRole,
+        logging: {
+          cloudWatch: {
+            logGroup: new logs.LogGroup(this, `${obj.functionName}-FunctionDeployStageLogGroup`, {
+              logGroupName: `${serviceName}/${obj.functionName}-deploy-stage`,
+              removalPolicy: RemovalPolicy.DESTROY,
+              retention: logs.RetentionDays.THREE_DAYS,
+            }),
+          },
+        },
+      });
 
-    const lambdaAction = new codepipeline_actions.CodeBuildAction({
-      actionName: deployStageName,
-      project: lambdaProject,
-      input: sourceOutput,
-    });
+      const functionDeployAction = new codepipeline_actions.CodeBuildAction({
+        actionName: deployStageName,
+        project: functionDeployStage,
+        input: sourceOutput,
+      });
 
-    new codepipeline.Pipeline(this, "DeployPipeline", {
-      pipelineName: `${serviceName}-lambda-pipeline`,
-      stages: [
-        {
-          stageName: sourceStageName,
-          actions: [sourceAction],
-        },
-        {
-          stageName: deployStageName,
-          actions: [lambdaAction],
-        },
-      ],
-    });
+      new codepipeline.Pipeline(this, `${obj.functionName}-Pipeline`, {
+        pipelineName: `${serviceName}-${obj.functionName}-pipeline`,
+        stages: [
+          {
+            stageName: sourceStageName,
+            actions: [sourceAction],
+          },
+          {
+            stageName: deployStageName,
+            actions: [functionDeployAction],
+          },
+        ],
+      });
+    }
   }
 }
