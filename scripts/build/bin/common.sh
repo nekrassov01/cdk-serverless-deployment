@@ -135,3 +135,17 @@ wait_distribution_deploy() {
     echo "STATUS: $status"
   done
 }
+
+update_function_code_and_get_version() {
+  aws lambda update-function-code --function-name "$1" --s3-bucket "$2" --s3-key "$3" --publish --query "Version" --output text || {
+    echo "ERROR: Failed to update function for $1."
+    exit 1
+  }
+}
+
+update_function_alias() {
+  aws lambda update-alias --function-name "$1" --name "$2" --function-version "$3" || {
+    echo "ERROR: Failed to update function alias for $1."
+    exit 1
+  }
+}

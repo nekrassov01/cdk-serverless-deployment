@@ -8,7 +8,6 @@ unused
 !package.json
 !tsconfig.json
 !*.EXAMPLE.json
-!cdk.public.json
 !frontend/src/**/config.json
 !scripts
 !scripts/build

@@ -1,13 +1,4 @@
-import {
-  APIGatewayEventRequestContextV2,
-  APIGatewayProxyEventV2,
-  APIGatewayProxyResultV2,
-} from "aws-lambda";
-
-export const handler = async (
-  event: APIGatewayProxyEventV2,
-  context: APIGatewayEventRequestContextV2
-): Promise<APIGatewayProxyResultV2> => {
+export const handler = async (event, context) => {
   const responseBody = {
     lambdaVersion: process.env.AWS_LAMBDA_FUNCTION_VERSION,
     apiVersion: "v2",

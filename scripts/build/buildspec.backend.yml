@@ -5,7 +5,7 @@ phases:
       - bash scripts/build/bin/install.awscliv2.sh
   build:
     commands:
-      - bash scripts/build/bin/backend.sh infra Item1FunctionStack
+      - bash scripts/build/bin/backend.sh
 artifacts:
   files:
     - "**/*"
