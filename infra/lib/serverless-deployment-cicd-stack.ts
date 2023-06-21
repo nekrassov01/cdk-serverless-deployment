@@ -8,6 +8,8 @@ import {
   aws_events as events,
   aws_events_targets as events_targets,
   aws_iam as iam,
+  aws_lambda as lambda,
+  aws_lambda_nodejs as lambda_nodejs,
   aws_logs as logs,
   aws_s3 as s3,
   aws_sns as sns,
@@ -22,6 +24,7 @@ const domainName = common.getDomain();
 const lambdaConfig = common.defaultConfig.lambda;
 const apigatewayConfig = common.defaultConfig.apigateway;
 const codebuildConfig = common.defaultConfig.codebuild;
+const backends = common.pipelines.filter((item: { [key: string]: any }) => item.type === "backend");
 
 const sourceStageName = "Source";
 const buildStageName = "Build";
@@ -74,22 +77,74 @@ export class CicdStack extends Stack {
       common.repository
     );
 
-    // codepipeline artifact output
-    const sourceOutput = new codepipeline.Artifact(sourceStageName);
-    const buildOutput = new codepipeline.Artifact(buildStageName);
-    const deployOutput = new codepipeline.Artifact(deployStageName);
+    /**
+     * Pipeline trigger for monorepo
+     */
+
+    // Create role for pipeline trigger function
+    const pipelineHandlerRole = new iam.Role(this, "PipelineHandlerRole", {
+      roleName: common.getResourceName("pipeline-hander-role"),
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      inlinePolicies: {
+        ["PipelineHandlerRoleAdditionalPolicy"]: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ["ssm:GetParameter", "ssm:PutParameter"],
+              resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${common.getResourceNamePath("*")}`],
+            }),
+            new iam.PolicyStatement({
+              resources: [`arn:aws:codepipeline:${this.region}:${this.account}:*`],
+              actions: [
+                "codepipeline:GetPipeline",
+                "codepipeline:ListPipelines",
+                "codepipeline:StartPipelineExecution",
+                "codepipeline:StopPipelineExecution",
+              ],
+            }),
+          ],
+        }),
+      },
+    });
+
+    // Create pipeline trigger function
+    const pipelineHandler = new lambda_nodejs.NodejsFunction(this, "PipelineHandler", {
+      functionName: common.getResourceName("pipeline-handler"),
+      runtime: lambda.Runtime.NODEJS_18_X,
+      entry: "lib/asset/lambda/pipeline-trigger/index.ts",
+      handler: "handler",
+      deadLetterQueueEnabled: true,
+      reservedConcurrentExecutions: 1,
+      environment: {
+        PIPELINE_MAP: JSON.stringify(common.pipelines),
+      },
+      role: pipelineHandlerRole,
+    });
+    codeCommitRepository.grantRead(pipelineHandler);
+
+    // Create event rule for repository state change
+    const pipelineHandlerEventRule = new events.Rule(this, "PipelineHandlerEventRule", {
+      eventPattern: {
+        source: ["aws.codecommit"],
+        detailType: ["CodeCommit Repository State Change"],
+        resources: [codeCommitRepository.repositoryArn],
+        detail: {
+          event: ["referenceUpdated"],
+          referenceType: ["branch"],
+          referenceName: [common.branch],
+        },
+      },
+    });
+    pipelineHandlerEventRule.addTarget(new events_targets.LambdaFunction(pipelineHandler));
 
     /**
      * Frontend pipeline
      */
 
-    //const frontendArtifactBucket = new s3.Bucket(this, "FrontendArtifactBucket", {
-    //  bucketName: common.getResourceName("pipeline-artifact-frontend"),
-    //  encryption: s3.BucketEncryption.S3_MANAGED,
-    //  enforceSSL: true,
-    //  removalPolicy: RemovalPolicy.DESTROY,
-    //  autoDeleteObjects: true,
-    //});
+    // Create frontend pipeline artifact output
+    const frontendSourceOutput = new codepipeline.Artifact(sourceStageName);
+    const frontendBuildOutput = new codepipeline.Artifact(buildStageName);
+    const frontendDeployOutput = new codepipeline.Artifact(deployStageName);
 
     // Create s3 bucket for frontend pipeline artifact
     const frontendArtifactBucket = common.createBucket(this, "FrontendArtifactBucket", {
@@ -321,19 +376,19 @@ export class CicdStack extends Stack {
       actionName: sourceStageName,
       repository: codeCommitRepository,
       branch: common.branch,
-      output: sourceOutput,
+      output: frontendSourceOutput,
       role: frontendSourceActionRole,
       eventRole: frontendSourceActionEventRole,
       runOrder: 1,
-      trigger: common.getPipelineTrigger(),
+      trigger: codepipeline_actions.CodeCommitTrigger.NONE,
     });
 
     // Create frontend pipeline action for build stag
     const frontendBuildAction = new codepipeline_actions.CodeBuildAction({
       actionName: buildStageName,
       project: frontendBuildProject,
-      input: sourceOutput,
-      outputs: [buildOutput],
+      input: frontendSourceOutput,
+      outputs: [frontendBuildOutput],
       role: frontendBuildActionRole,
       runOrder: 1,
     });
@@ -342,8 +397,8 @@ export class CicdStack extends Stack {
     const frontendDeployAction = new codepipeline_actions.CodeBuildAction({
       actionName: deployStageName,
       project: frontendDeployProject,
-      input: buildOutput,
-      outputs: [deployOutput],
+      input: frontendBuildOutput,
+      outputs: [frontendDeployOutput],
       role: frontendDeployActionRole,
       runOrder: 1,
     });
@@ -367,7 +422,7 @@ export class CicdStack extends Stack {
     const frontendPromoteAction = new codepipeline_actions.CodeBuildAction({
       actionName: promoteStageName,
       project: frontendPromoteProject,
-      input: deployOutput,
+      input: frontendDeployOutput,
       outputs: undefined,
       role: frontendPromoteActionRole,
       runOrder: 1,
@@ -546,6 +601,9 @@ export class CicdStack extends Stack {
      * Backend pipeline
      */
 
+    // Create backend pipeline artifact output
+    const backendSourceOutput = new codepipeline.Artifact(sourceStageName);
+
     // Create s3 bucket for backend pipeline artifact
     const backendArtifactBucket = common.createBucket(this, "BackendArtifactBucket", {
       bucketName: "pipeline-artifact-backend",
@@ -555,12 +613,12 @@ export class CicdStack extends Stack {
     });
 
     // Create backend pipelines
-    for (const item of common.functions) {
-      const functionName = common.convertKebabToPascalCase(item.functionName);
+    for (const item of backends) {
+      const functionName = common.convertKebabToPascalCase(item.name);
 
       // Create codebuild project role for backend
       const backendDeployProjectRole = new iam.Role(this, `${functionName}DeployProjectRole`, {
-        roleName: common.getResourceName(`${item.functionName}-deploy-project-role`),
+        roleName: common.getResourceName(`${item.name}-deploy-project-role`),
         assumedBy: new iam.ServicePrincipal("codebuild.amazonaws.com"),
         inlinePolicies: {
           [`${functionName}DeployProjectRoleAdditionalPolicy`]: new iam.PolicyDocument({
@@ -574,7 +632,7 @@ export class CicdStack extends Stack {
                 effect: iam.Effect.ALLOW,
                 actions: ["lambda:UpdateFunctionCode", "lambda:UpdateAlias"],
                 resources: [
-                  `arn:aws:lambda:${this.region}:${this.account}:function:${common.getResourceName(item.functionName)}`,
+                  `arn:aws:lambda:${this.region}:${this.account}:function:${common.getResourceName(item.name)}`,
                 ],
               }),
             ],
@@ -584,7 +642,7 @@ export class CicdStack extends Stack {
 
       // Create codebuild project for backend
       const backendDeployProject = new codebuild.PipelineProject(this, `${functionName}DeployProject`, {
-        projectName: common.getResourceName(`${item.functionName}-deploy-project`),
+        projectName: common.getResourceName(`${item.name}-deploy-project`),
         buildSpec: codebuild.BuildSpec.fromSourceFilename(`${codebuildConfig.localDir}/buildspec.backend.yml`),
         environment: {
           buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
@@ -594,8 +652,8 @@ export class CicdStack extends Stack {
           ENVIRONMENT: { value: common.environment },
           BRANCH: { value: common.branch },
           BUCKET_NAME: { value: common.getResourceName(lambdaConfig.bucket) },
-          BUCKET_PATH: { value: item.bucketPath },
-          FUNCTION_NAME: { value: common.getResourceName(item.functionName) },
+          BUCKET_PATH: { value: item.path },
+          FUNCTION_NAME: { value: common.getResourceName(item.name) },
           FUNCTION_ALIAS: { value: lambdaConfig.alias },
           FUNCTION_PACKAGE_NAME: { value: lambdaConfig.package },
         },
@@ -604,7 +662,7 @@ export class CicdStack extends Stack {
         logging: {
           cloudWatch: {
             logGroup: new logs.LogGroup(this, `${functionName}DeployProjectLogGroup`, {
-              logGroupName: common.getResourceNamePath(`codebuild/${item.functionName}-deploy-project`),
+              logGroupName: common.getResourceNamePath(`codebuild/${item.name}-deploy-project`),
               removalPolicy: common.getRemovalPolicy(),
               retention: common.getLogsRetentionDays(),
             }),
@@ -614,19 +672,19 @@ export class CicdStack extends Stack {
 
       // Create codecommit role for backend
       const backendSourceActionRole = new iam.Role(this, `${functionName}SourceRole`, {
-        roleName: common.getResourceName(`${item.functionName}-source-role`),
+        roleName: common.getResourceName(`${item.name}-source-role`),
         assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
       });
 
       // Create event role for backend
       const backendSpurceActionEventRole = new iam.Role(this, `${functionName}EventRole`, {
-        roleName: common.getResourceName(`${item.functionName}-event-role`),
+        roleName: common.getResourceName(`${item.name}-event-role`),
         assumedBy: new iam.ServicePrincipal("events.amazonaws.com"),
       });
 
       // Create codebuild deploy project role for backend
       const backendDeployActionRole = new iam.Role(this, `${functionName}DeployActionRole`, {
-        roleName: common.getResourceName(`${item.functionName}-deploy-action-role`),
+        roleName: common.getResourceName(`${item.name}-deploy-action-role`),
         assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
       });
 
@@ -635,18 +693,18 @@ export class CicdStack extends Stack {
         actionName: sourceStageName,
         repository: codeCommitRepository,
         branch: common.branch,
-        output: sourceOutput,
+        output: backendSourceOutput,
         role: backendSourceActionRole,
         eventRole: backendSpurceActionEventRole,
         runOrder: 1,
-        trigger: common.getPipelineTrigger(),
+        trigger: codepipeline_actions.CodeCommitTrigger.NONE,
       });
 
       // Create backend pipeline action for deploy stage
       const backendDeployAction = new codepipeline_actions.CodeBuildAction({
         actionName: deployStageName,
         project: backendDeployProject,
-        input: sourceOutput,
+        input: backendSourceOutput,
         outputs: undefined,
         role: backendDeployActionRole,
         runOrder: 1,
@@ -654,7 +712,7 @@ export class CicdStack extends Stack {
 
       // Create backend pipeline role
       const backendPipelineRole = new iam.Role(this, `${functionName}PipelineRole`, {
-        roleName: common.getResourceName(`${item.functionName}-pipeline-role`),
+        roleName: common.getResourceName(`${item.name}-pipeline-role`),
         assumedBy: new iam.ServicePrincipal("codepipeline.amazonaws.com"),
         inlinePolicies: {
           [`${functionName}PipelineRoleAdditionalPolicy`]: new iam.PolicyDocument({
@@ -675,7 +733,7 @@ export class CicdStack extends Stack {
 
       // Create backend pipeline
       new codepipeline.Pipeline(this, `${functionName}Pipeline`, {
-        pipelineName: common.getResourceName(`${item.functionName}-pipeline`),
+        pipelineName: common.getResourceName(`${item.name}-pipeline`),
         role: backendPipelineRole,
         artifactBucket: backendArtifactBucket,
         stages: [

@@ -55,28 +55,6 @@ export class HostingStack extends Stack {
      * Hosting bucket
      */
 
-    //// Create hosting bucket
-    //const hostingBucket = new s3.Bucket(this, "HostingBucket", {
-    //  bucketName: common.getResourceName("website"),
-    //  blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-    //  publicReadAccess: false,
-    //  encryption: s3.BucketEncryption.S3_MANAGED,
-    //  enforceSSL: true,
-    //  removalPolicy: common.getS3Parameter().removalPolicy,
-    //  autoDeleteObjects: common.getS3Parameter().autoDeleteObjects,
-    //  versioned: false,
-    //  //websiteIndexDocument: "index.html", // error if this is present
-    //  //websiteErrorDocument: "index.html", // same as above
-    //  cors: [
-    //    {
-    //      allowedHeaders: ["*"],
-    //      allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.HEAD],
-    //      allowedOrigins: [`https://${domainName}`, `https://*.${domainName}`],
-    //      exposedHeaders: [],
-    //      maxAge: 3000,
-    //    },
-    //  ],
-    //});
     const hostingBucket = common.createBucket(this, "HostingBucket", {
       bucketName: "website",
       lifecycle: false,
@@ -86,7 +64,7 @@ export class HostingStack extends Stack {
     hostingBucket.addCorsRule({
       allowedHeaders: ["*"],
       allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.HEAD],
-      allowedOrigins: [`https://${domainName}`, `https://*.${domainName}`],
+      allowedOrigins: [`https://${domainName}`, `https://*.${domainName}`], // Add here if you need access from an external domain
       exposedHeaders: [],
       maxAge: 3000,
     });
@@ -95,18 +73,6 @@ export class HostingStack extends Stack {
      * CloudFront
      */
 
-    //// Create CloudFront accesslog bucket
-    //const cloudfrontLogBucket = new s3.Bucket(this, "CloudFrontLogBucket", {
-    //  bucketName: common.getResourceName("cloudfront-log"),
-    //  blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-    //  publicReadAccess: false,
-    //  encryption: s3.BucketEncryption.S3_MANAGED,
-    //  enforceSSL: true,
-    //  removalPolicy: common.getS3Parameter().removalPolicy,
-    //  autoDeleteObjects: common.getS3Parameter().autoDeleteObjects,
-    //  versioned: false,
-    //  objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED, // required in cloudfront accesslog bucket
-    //});
     const cloudfrontLogBucket = common.createBucket(this, "CloudFrontLogBucket", {
       bucketName: "cloudfront-log",
       lifecycle: true,

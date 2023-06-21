@@ -80,7 +80,7 @@ export class ApiStack extends Stack {
     //}
 
     // Create lambda role for v1/items/item1
-    const item1FunctionRole = new iam.Role(this, `Item1FunctionRole`, {
+    const item1FunctionRole = new iam.Role(this, "Item1FunctionRole", {
       roleName: common.getResourceName("item1-function-role"),
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });
@@ -104,7 +104,7 @@ export class ApiStack extends Stack {
     });
 
     // Create lambda role for v1/items/item2
-    const item2FunctionRole = new iam.Role(this, `Item2FunctionRole`, {
+    const item2FunctionRole = new iam.Role(this, "Item2FunctionRole", {
       roleName: common.getResourceName("item2-function-role"),
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });
@@ -128,7 +128,7 @@ export class ApiStack extends Stack {
     });
 
     // Create lambda role for v2/items/item1
-    const item1V2FunctionRole = new iam.Role(this, `Item1V2FunctionRole`, {
+    const item1V2FunctionRole = new iam.Role(this, "Item1V2FunctionRole", {
       roleName: common.getResourceName("item1-v2-function-role"),
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });
@@ -152,7 +152,7 @@ export class ApiStack extends Stack {
     });
 
     // Create lambda role for v2/items/item2
-    const item2V2FunctionRole = new iam.Role(this, `Item2V2FunctionRole`, {
+    const item2V2FunctionRole = new iam.Role(this, "Item2V2FunctionRole", {
       roleName: common.getResourceName("item2-v2-function-role"),
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });

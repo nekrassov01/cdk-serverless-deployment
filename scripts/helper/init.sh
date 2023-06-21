@@ -27,6 +27,8 @@ branch="$(jq -r '.context.branch' <"$context")"
 package="$(jq -r '.context.defaultConfig.lambda.package' <"$context")"
 bucket="$(jq -r '.context.defaultConfig.lambda.bucket' <"$context")"
 target_env="$(jq --arg env "$environment" -r '.context.environments[] | select(.name == $env)' <"$context")"
+backends="$(jq -r '.context.pipelines[] | select(.type == "backend")' <"$context")"
+dirs="$(jq -r '.path' <<<"$backends")"
 region="$(jq -r '.region' <<<"$target_env")"
 parameter_key="/$service/$environment/$branch/version/frontend"
 bucket_name="$service-$environment-$branch-$bucket"
@@ -67,13 +69,6 @@ fi
 # ---------
 
 echo "[STEP3] PROCESS: Upload lambda package to bucket."
-
-dirs=(
-  "backend/item1"
-  "backend/item2"
-  "backend-v2/item1"
-  "backend-v2/item2"
-)
 
 for dir in "${dirs[@]}"; do
   tmpDir=$(mktemp -d)

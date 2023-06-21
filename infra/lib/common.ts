@@ -51,6 +51,7 @@ export class Common {
   public readonly defaultConfig = app.node.tryGetContext("defaultConfig");
   public readonly environments = app.node.tryGetContext("environments");
   public readonly functions = app.node.tryGetContext("functions");
+  public readonly pipelines = app.node.tryGetContext("pipelines");
   public readonly containers = app.node.tryGetContext("containers");
 
   // Verify environment settings
