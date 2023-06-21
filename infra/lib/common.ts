@@ -50,7 +50,6 @@ export class Common {
   public readonly branch = app.node.tryGetContext("branch");
   public readonly defaultConfig = app.node.tryGetContext("defaultConfig");
   public readonly environments = app.node.tryGetContext("environments");
-  public readonly functions = app.node.tryGetContext("functions");
   public readonly pipelines = app.node.tryGetContext("pipelines");
   public readonly containers = app.node.tryGetContext("containers");
 
@@ -402,6 +401,15 @@ export class Common {
   // Default pipeline trigger
   public getPipelineTrigger(): actions.CodeCommitTrigger {
     return this.isProductionOrStaging() ? actions.CodeCommitTrigger.NONE : actions.CodeCommitTrigger.EVENTS;
+  }
+
+  // Get string parameter from SSM parameter store
+  public getSsmParameter(scope: Construct, name: string): string {
+    return ssm.StringParameter.valueForTypedStringParameterV2(
+      scope,
+      this.getResourceNamePath(name),
+      ssm.ParameterValueType.STRING
+    );
   }
 
   // Default S3 settings

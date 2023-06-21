@@ -40,34 +40,22 @@ export class CicdStack extends Stack {
      * Get parameters
      */
 
+    // Get hosting bucket
+    const hostingBucketName = common.getSsmParameter(this, "s3/website");
+    const hostingBucket = s3.Bucket.fromBucketName(this, "HostingBucket", hostingBucketName);
+
+    // Get cloudfront log bucket
+    const cloudfrontLogBucketName = common.getSsmParameter(this, "s3/cloudfront-log");
+    const cloudfrontLogBucket = s3.Bucket.fromBucketName(this, "CloudFrontLogBucket", cloudfrontLogBucketName);
+
+    // Get cloudfront distribution id
+    const distributionId = common.getSsmParameter(this, "cloudfront/cfcd-production");
+
     // Get function bucket
     const functionBucket = s3.Bucket.fromBucketName(
       this,
       "FunctionBucket",
       common.getResourceName(lambdaConfig.bucket)
-    );
-
-    // Get hosting bucket
-    const hostingBucketName = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      common.getResourceNamePath("s3/website"),
-      ssm.ParameterValueType.STRING
-    );
-    const hostingBucket = s3.Bucket.fromBucketName(this, "HostingBucket", hostingBucketName);
-
-    // Get cloudfront log bucket
-    const cloudfrontLogBucketName = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      common.getResourceNamePath("s3/cloudfront-log"),
-      ssm.ParameterValueType.STRING
-    );
-    const cloudfrontLogBucket = s3.Bucket.fromBucketName(this, "CloudFrontLogBucket", cloudfrontLogBucketName);
-
-    // Get cloudfront distribution id
-    const distributionId = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      common.getResourceNamePath("cloudfront/cfcd-production"),
-      ssm.ParameterValueType.STRING
     );
 
     // Get codecommit repository
@@ -124,6 +112,8 @@ export class CicdStack extends Stack {
 
     // Create event rule for repository state change
     const pipelineHandlerEventRule = new events.Rule(this, "PipelineHandlerEventRule", {
+      enabled: true,
+      ruleName: common.getResourceName("pipeline-handler-rule"),
       eventPattern: {
         source: ["aws.codecommit"],
         detailType: ["CodeCommit Repository State Change"],
@@ -168,11 +158,26 @@ export class CicdStack extends Stack {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },
       environmentVariables: {
-        SERVICE: { value: common.service },
-        ENVIRONMENT: { value: common.environment },
-        BRANCH: { value: common.branch },
-        REACT_APP_BACKEND_DOMAIN: { value: domainName },
-        REACT_APP_BACKEND_STAGE: { value: apigatewayConfig.stage },
+        SERVICE: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.service,
+        },
+        ENVIRONMENT: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.environment,
+        },
+        BRANCH: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.branch,
+        },
+        REACT_APP_BACKEND_DOMAIN: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: domainName,
+        },
+        REACT_APP_BACKEND_STAGE: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: apigatewayConfig.stage,
+        },
       },
       badge: false,
       role: frontendBuildProjectRole,
@@ -245,11 +250,42 @@ export class CicdStack extends Stack {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },
       environmentVariables: {
-        SERVICE: { value: common.service },
-        ENVIRONMENT: { value: common.environment },
-        BRANCH: { value: common.branch },
-        BUCKET_NAME: { value: hostingBucketName },
-        DISTRIBUTION_ID: { value: distributionId },
+        SERVICE: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.service,
+        },
+        ENVIRONMENT: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.environment,
+        },
+        BRANCH: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.branch,
+        },
+        BUCKET_NAME: {
+          type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+          value: ssm.StringParameter.fromStringParameterName(
+            this,
+            "FrontendDeployProjectParameter1",
+            common.getResourceNamePath("s3/website")
+          ),
+        },
+        PRODUCTION_DISTRIBUTION_ID: {
+          type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+          value: ssm.StringParameter.fromStringParameterName(
+            this,
+            "FrontendDeployProjectParameter2",
+            common.getResourceNamePath("cloudfront/cfcd-production")
+          ),
+        },
+        FRONTEND_VERSION: {
+          type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+          value: ssm.StringParameter.fromStringParameterName(
+            this,
+            "FrontendDeployProjectParameter3",
+            common.getResourceNamePath("version/frontend")
+          ),
+        },
       },
       badge: false,
       role: frontendDeployProjectRole,
@@ -316,11 +352,34 @@ export class CicdStack extends Stack {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },
       environmentVariables: {
-        SERVICE: { value: common.service },
-        ENVIRONMENT: { value: common.environment },
-        BRANCH: { value: common.branch },
-        BUCKET_NAME: { value: hostingBucketName },
-        DISTRIBUTION_ID: { value: distributionId },
+        SERVICE: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.service,
+        },
+        ENVIRONMENT: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.environment,
+        },
+        BRANCH: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.branch,
+        },
+        PRODUCTION_DISTRIBUTION_ID: {
+          type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+          value: ssm.StringParameter.fromStringParameterName(
+            this,
+            "FrontendPromoteProjectParameter1",
+            common.getResourceNamePath("cloudfront/cfcd-production")
+          ),
+        },
+        STAGING_DISTRIBUTION_ID: {
+          type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+          value: ssm.StringParameter.fromStringParameterName(
+            this,
+            "FrontendPromoteProjectParameter2",
+            common.getResourceNamePath("cloudfront/cfcd-staging")
+          ),
+        },
       },
       badge: false,
       role: frontendPromoteProjectRole,
@@ -551,11 +610,34 @@ export class CicdStack extends Stack {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },
       environmentVariables: {
-        SERVICE: { value: common.service },
-        ENVIRONMENT: { value: common.environment },
-        BRANCH: { value: common.branch },
-        BUCKET_NAME: { value: hostingBucketName },
-        DISTRIBUTION_ID: { value: distributionId },
+        SERVICE: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.service,
+        },
+        ENVIRONMENT: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.environment,
+        },
+        BRANCH: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: common.branch,
+        },
+        PRODUCTION_DISTRIBUTION_ID: {
+          type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+          value: ssm.StringParameter.fromStringParameterName(
+            this,
+            "FrontendCleanupProjectParameter1",
+            common.getResourceNamePath("cloudfront/cfcd-production")
+          ),
+        },
+        STAGING_DISTRIBUTION_ID: {
+          type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+          value: ssm.StringParameter.fromStringParameterName(
+            this,
+            "FrontendCleanupProjectParameter2",
+            common.getResourceNamePath("cloudfront/cfcd-staging")
+          ),
+        },
       },
       badge: false,
       role: frontendCleanupProjectRole,
@@ -577,9 +659,9 @@ export class CicdStack extends Stack {
     });
 
     // Create eventbridge rule when approval failed
-    const frontendPipelineEventRule = new events.Rule(this, "FrontendPipelineEventRule", {
+    const frontendPipelineEventRule = new events.Rule(this, "FrontendCleanupEventRule", {
       enabled: true,
-      ruleName: common.getResourceName("frontend-pipeline-hook"),
+      ruleName: common.getResourceName("frontend-cleanup-rule"),
       eventPattern: {
         source: ["aws.codepipeline"],
         detailType: ["CodePipeline Action Execution State Change"],
@@ -648,14 +730,38 @@ export class CicdStack extends Stack {
           buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
         },
         environmentVariables: {
-          SERVICE: { value: common.service },
-          ENVIRONMENT: { value: common.environment },
-          BRANCH: { value: common.branch },
-          BUCKET_NAME: { value: common.getResourceName(lambdaConfig.bucket) },
-          BUCKET_PATH: { value: item.path },
-          FUNCTION_NAME: { value: common.getResourceName(item.name) },
-          FUNCTION_ALIAS: { value: lambdaConfig.alias },
-          FUNCTION_PACKAGE_NAME: { value: lambdaConfig.package },
+          SERVICE: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: common.service,
+          },
+          ENVIRONMENT: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: common.environment,
+          },
+          BRANCH: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: common.branch,
+          },
+          BUCKET_NAME: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: common.getResourceName(lambdaConfig.bucket),
+          },
+          BUCKET_PATH: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: item.path,
+          },
+          FUNCTION_NAME: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: common.getResourceName(item.name),
+          },
+          FUNCTION_ALIAS: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: lambdaConfig.alias,
+          },
+          FUNCTION_PACKAGE_NAME: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: lambdaConfig.package,
+          },
         },
         badge: false,
         role: backendDeployProjectRole,

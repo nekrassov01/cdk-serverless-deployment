@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/cdk-serverless.ts",
+  "app": "npx ts-node --prefer-ts-exts bin/main.ts",
   "watch": {
     "include": ["**"],
     "exclude": [
@@ -42,14 +42,84 @@
     "@aws-cdk/aws-secretsmanager:useAttachedSecretResourcePolicyForSecretTargetAttachments": true,
     "@aws-cdk/aws-redshift:columnId": true,
 
+    "service": "app",
     "owner": "user",
-    "serviceName": "app",
-    "environmentName": "dev",
-    "repositoryName": "your-repository-name",
+    "addresses": ["user@your-domain.com"],
+    "environment": "dev",
+    "repository": "test-repo",
     "branch": "feature",
-    "functionAlias": "live",
-    "email": "user@your-domain.com",
-    "domain": "your-domain.com",
-    "webAclArn": "dummy-arn"
+    "defaultConfig": {
+      "apigateway": {
+        "stage": "default"
+      },
+      "lambda": {
+        "bucket": "lambda-packages",
+        "alias": "live",
+        "package": "function.zip"
+      },
+      "codebuild": {
+        "localDir": "scripts/build"
+      }
+    },
+    "environments": [
+      {
+        "name": "dev",
+        "account": "000000000000",
+        "region": "ap-northeast-1",
+        "hostedZone": "dev.example.com",
+        "webAcl": "dummy-arn-1"
+      },
+      {
+        "name": "stg",
+        "account": "111111111111",
+        "region": "ap-northeast-1",
+        "hostedZone": "stg.example.com",
+        "webAcl": "dummy-arn-2"
+      },
+      {
+        "name": "prod",
+        "account": "222222222222",
+        "region": "ap-northeast-1",
+        "hostedZone": "example.com",
+        "webAcl": "dummy-arn-2"
+      }
+    ],
+    "pipelines": [
+      {
+        "name": "item1",
+        "path": "backend/item1",
+        "type": "backend"
+      },
+      {
+        "name": "item2",
+        "path": "backend/item2",
+        "type": "backend"
+      },
+      {
+        "name": "item1-v2",
+        "path": "backend-v2/item1",
+        "type": "backend"
+      },
+      {
+        "name": "item2-v2",
+        "path": "backend-v2/item1",
+        "type": "backend"
+      },
+      {
+        "name": "frontend",
+        "path": "frontend",
+        "type": "frontend"
+      }
+    ],
+    "containers": [
+      {
+        "name": "keycloak",
+        "environment": "dev",
+        "repository": "ecr-repo/keycloak",
+        "imagePath": "src/image/keycloak",
+        "version": ["21.1.0"],
+        "tag": "21.1.0"
+      }
+    ]
   }
 }

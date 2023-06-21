@@ -2,7 +2,7 @@ exports.handler = async (event, context) => {
   const responseBody = {
     lambdaVersion: process.env.AWS_LAMBDA_FUNCTION_VERSION,
     apiVersion: "v1",
-    resource: "item1-test",
+    resource: "items/item1",
   };
 
   return {

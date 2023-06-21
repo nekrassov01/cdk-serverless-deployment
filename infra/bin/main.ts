@@ -14,7 +14,6 @@ const common = new Common();
 common.verifyEnvironment();
 common.verifyCallerAccount();
 common.verifyBranch();
-//common.verifyContainer();
 
 // Get `env` for deploying stacks from 'cdk.json'
 const targetEnv = common.getEnvironment();

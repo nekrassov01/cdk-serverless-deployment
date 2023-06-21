@@ -53,15 +53,14 @@ fi
 echo "[STEP2] PROCESS: Create bucket for lambda package deployment."
 
 if ! aws s3 ls "s3://$bucket_name" 2>&1 | grep -q 'NoSuchBucket'; then
-  echo "[STEP2] WARNING: Bucket $bucket_name already exists."
-  echo "Process exited." && exit 0
-fi
-
-if aws s3api create-bucket --bucket "$bucket_name" --region "$region" --create-bucket-configuration LocationConstraint="$region" &>/dev/null; then
-  echo "[STEP2] SUCCESS: Bucket '$bucket_name' create complete successfully."
+  echo "[STEP2] SUCCESS: Bucket $bucket_name already exists."
 else
-  echo "[STEP2] ERROR: Bucket '$bucket_name' create failed."
-  echo "Process aborted." && exit 1
+  if aws s3api create-bucket --bucket "$bucket_name" --region "$region" --create-bucket-configuration LocationConstraint="$region" &>/dev/null; then
+    echo "[STEP2] SUCCESS: Bucket '$bucket_name' create complete successfully."
+  else
+    echo "[STEP2] ERROR: Bucket '$bucket_name' create failed."
+    echo "Process aborted." && exit 1
+  fi
 fi
 
 # ---------

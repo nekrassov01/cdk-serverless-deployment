@@ -30,26 +30,14 @@ export class HostingStack extends Stack {
      */
 
     // Get version of application frontend from SSM parameter store
-    const frontendVersion = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      common.getResourceNamePath("version/frontend"),
-      ssm.ParameterValueType.STRING
-    );
+    const frontendVersion = common.getSsmParameter(this, "version/frontend");
 
     // Get certificate ARN from SSM parameter store
-    const certificateArn = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      common.getResourceNamePath("certificate"),
-      ssm.ParameterValueType.STRING
-    );
+    const certificateArn = common.getSsmParameter(this, "certificate");
     const certificate = acm.Certificate.fromCertificateArn(this, "Certificate", certificateArn);
 
     // Get rest api from SSM parameter store
-    const apiId = ssm.StringParameter.valueForTypedStringParameterV2(
-      this,
-      common.getResourceNamePath("apigateway"),
-      ssm.ParameterValueType.STRING
-    );
+    const apiId = common.getSsmParameter(this, "apigateway");
 
     /**
      * Hosting bucket
