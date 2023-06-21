@@ -281,35 +281,60 @@ export class CicdStack extends Stack {
     });
 
     // Create codecommit role for frontend
-    const frontendSourceRole = new iam.Role(this, "FrontendSourceRole", {
+    const frontendSourceActionRole = new iam.Role(this, "FrontendSourceActionRole", {
       roleName: common.getResourceName("frontend-source-role"),
       assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
     });
 
     // Create event role for frontend
-    const frontendEventRole = new iam.Role(this, "FrontendEventRole", {
+    const frontendSourceActionEventRole = new iam.Role(this, "FrontendSourceActionEventRole", {
       roleName: common.getResourceName("frontend-event-role"),
       assumedBy: new iam.ServicePrincipal("events.amazonaws.com"),
+    });
+
+    // Create codebuild build project role for backend
+    const frontendBuildActionRole = new iam.Role(this, `FrontendBuildActionRole`, {
+      roleName: common.getResourceName(`frontend-build-action-role`),
+      assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
+    });
+
+    // Create codebuild deploy project role for backend
+    const frontendDeployActionRole = new iam.Role(this, `FrontendDeployActionRole`, {
+      roleName: common.getResourceName(`frontend-deploy-action-role`),
+      assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
+    });
+
+    // Create codebuild approve project role for backend
+    const frontendApproveActionRole = new iam.Role(this, `FrontendApproveActionRole`, {
+      roleName: common.getResourceName(`frontend-approve-action-role`),
+      assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
+    });
+
+    // Create codebuild promote project role for backend
+    const frontendPromoteActionRole = new iam.Role(this, `FrontendPromoteActionRole`, {
+      roleName: common.getResourceName(`frontend-promote-action-role`),
+      assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
     });
 
     // Create frontend pipeline action for source stage
     const frontendSourceAction = new codepipeline_actions.CodeCommitSourceAction({
       actionName: sourceStageName,
-      role: frontendSourceRole,
-      eventRole: frontendEventRole,
       repository: codeCommitRepository,
       branch: common.branch,
       output: sourceOutput,
+      role: frontendSourceActionRole,
+      eventRole: frontendSourceActionEventRole,
       runOrder: 1,
       trigger: common.getPipelineTrigger(),
     });
 
-    // Create frontend pipeline action for build stage
+    // Create frontend pipeline action for build stag
     const frontendBuildAction = new codepipeline_actions.CodeBuildAction({
       actionName: buildStageName,
       project: frontendBuildProject,
       input: sourceOutput,
       outputs: [buildOutput],
+      role: frontendBuildActionRole,
       runOrder: 1,
     });
 
@@ -319,12 +344,14 @@ export class CicdStack extends Stack {
       project: frontendDeployProject,
       input: buildOutput,
       outputs: [deployOutput],
+      role: frontendDeployActionRole,
       runOrder: 1,
     });
 
     // Create frontend pipeline action for approval stage
     const frontendApproveAction = new codepipeline_actions.ManualApprovalAction({
       actionName: approveStageName,
+      role: frontendApproveActionRole,
       externalEntityLink: `https://us-east-1.console.aws.amazon.com/cloudfront/v3/home#/distributions/${distributionId}`,
       additionalInformation: `Access the staging distribution with the "aws-cf-cd-staging: true" request header and test your application.
       Once approved, the production distribution configuration will be overridden with staging configuration.`,
@@ -342,6 +369,7 @@ export class CicdStack extends Stack {
       project: frontendPromoteProject,
       input: deployOutput,
       outputs: undefined,
+      role: frontendPromoteActionRole,
       runOrder: 1,
     });
 
@@ -400,7 +428,7 @@ export class CicdStack extends Stack {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         principals: [
-          new iam.ArnPrincipal(frontendEventRole.roleArn),
+          new iam.ArnPrincipal(frontendSourceActionEventRole.roleArn),
           new iam.ArnPrincipal(frontendBuildProjectRole.roleArn),
           new iam.ArnPrincipal(frontendDeployProjectRole.roleArn),
           new iam.ArnPrincipal(frontendPromoteProjectRole.roleArn),
@@ -487,8 +515,14 @@ export class CicdStack extends Stack {
       },
     });
 
+    // Create event role for frontend cleanup project
+    const frontendCleanupEventRole = new iam.Role(this, "frontendCleanupEventRole", {
+      roleName: common.getResourceName("frontend-cleanup-event-role"),
+      assumedBy: new iam.ServicePrincipal("events.amazonaws.com"),
+    });
+
     // Create eventbridge rule when approval failed
-    new events.Rule(this, "EventHookRule", {
+    const frontendPipelineEventRule = new events.Rule(this, "FrontendPipelineEventRule", {
       enabled: true,
       ruleName: common.getResourceName("frontend-pipeline-hook"),
       eventPattern: {
@@ -501,8 +535,12 @@ export class CicdStack extends Stack {
           state: ["FAILED"],
         },
       },
-      targets: [new events_targets.CodeBuildProject(frontendCleanupProject)],
     });
+    frontendPipelineEventRule.addTarget(
+      new events_targets.CodeBuildProject(frontendCleanupProject, {
+        eventRole: frontendCleanupEventRole,
+      })
+    );
 
     /**
      * Backend pipeline
@@ -552,10 +590,10 @@ export class CicdStack extends Stack {
           buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
         },
         environmentVariables: {
-          SERVICE_NAME: { value: common.service },
-          ENVIRONMENT_NAME: { value: common.environment },
+          SERVICE: { value: common.service },
+          ENVIRONMENT: { value: common.environment },
           BRANCH: { value: common.branch },
-          BUCKET_NAME: { value: lambdaConfig.bucket },
+          BUCKET_NAME: { value: common.getResourceName(lambdaConfig.bucket) },
           BUCKET_PATH: { value: item.bucketPath },
           FUNCTION_NAME: { value: common.getResourceName(item.functionName) },
           FUNCTION_ALIAS: { value: lambdaConfig.alias },
@@ -575,25 +613,31 @@ export class CicdStack extends Stack {
       });
 
       // Create codecommit role for backend
-      const backendSourceRole = new iam.Role(this, `${functionName}SourceRole`, {
+      const backendSourceActionRole = new iam.Role(this, `${functionName}SourceRole`, {
         roleName: common.getResourceName(`${item.functionName}-source-role`),
         assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
       });
 
       // Create event role for backend
-      const backendEventRole = new iam.Role(this, `${functionName}EventRole`, {
+      const backendSpurceActionEventRole = new iam.Role(this, `${functionName}EventRole`, {
         roleName: common.getResourceName(`${item.functionName}-event-role`),
         assumedBy: new iam.ServicePrincipal("events.amazonaws.com"),
+      });
+
+      // Create codebuild deploy project role for backend
+      const backendDeployActionRole = new iam.Role(this, `${functionName}DeployActionRole`, {
+        roleName: common.getResourceName(`${item.functionName}-deploy-action-role`),
+        assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
       });
 
       // Create backend pipeline action for source stage
       const backendSourceAction = new codepipeline_actions.CodeCommitSourceAction({
         actionName: sourceStageName,
-        role: backendSourceRole,
-        eventRole: backendEventRole,
         repository: codeCommitRepository,
         branch: common.branch,
         output: sourceOutput,
+        role: backendSourceActionRole,
+        eventRole: backendSpurceActionEventRole,
         runOrder: 1,
         trigger: common.getPipelineTrigger(),
       });
@@ -604,6 +648,7 @@ export class CicdStack extends Stack {
         project: backendDeployProject,
         input: sourceOutput,
         outputs: undefined,
+        role: backendDeployActionRole,
         runOrder: 1,
       });
 
@@ -650,7 +695,7 @@ export class CicdStack extends Stack {
         new iam.PolicyStatement({
           effect: iam.Effect.ALLOW,
           principals: [
-            new iam.ArnPrincipal(backendSourceRole.roleArn),
+            new iam.ArnPrincipal(backendSourceActionRole.roleArn),
             new iam.ArnPrincipal(backendDeployProjectRole.roleArn),
           ],
           actions: ["s3:GetObject", "s3:PutObject"],

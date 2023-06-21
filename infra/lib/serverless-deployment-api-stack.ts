@@ -2,6 +2,7 @@ import {
   Stack,
   StackProps,
   aws_apigateway as apig,
+  aws_iam as iam,
   aws_lambda as lambda,
   aws_logs as logs,
   aws_s3 as s3,
@@ -78,6 +79,12 @@ export class ApiStack extends Stack {
     //  });
     //}
 
+    // Create lambda role for v1/items/item1
+    const item1FunctionRole = new iam.Role(this, `Item1FunctionRole`, {
+      roleName: common.getResourceName("item1-function-role"),
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+    });
+
     // v1/items/item1
     const item1Function = new lambda.Function(this, "Item1Function", {
       functionName: common.getResourceName("item1"),
@@ -89,10 +96,17 @@ export class ApiStack extends Stack {
       currentVersionOptions: {
         removalPolicy: common.getRemovalPolicy(),
       },
+      role: item1FunctionRole,
     });
     const item1FunctionAlias = new lambda.Alias(this, "Item1FunctionAlias", {
       aliasName: lambdaConfig.alias,
       version: item1Function.currentVersion,
+    });
+
+    // Create lambda role for v1/items/item2
+    const item2FunctionRole = new iam.Role(this, `Item2FunctionRole`, {
+      roleName: common.getResourceName("item2-function-role"),
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });
 
     // v1/items/item2
@@ -106,10 +120,17 @@ export class ApiStack extends Stack {
       currentVersionOptions: {
         removalPolicy: common.getRemovalPolicy(),
       },
+      role: item2FunctionRole,
     });
     const item2FunctionAlias = new lambda.Alias(this, "Item2FunctionAlias", {
       aliasName: lambdaConfig.alias,
       version: item2Function.currentVersion,
+    });
+
+    // Create lambda role for v2/items/item1
+    const item1V2FunctionRole = new iam.Role(this, `Item1V2FunctionRole`, {
+      roleName: common.getResourceName("item1-v2-function-role"),
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });
 
     // v2/items/item1
@@ -123,10 +144,17 @@ export class ApiStack extends Stack {
       currentVersionOptions: {
         removalPolicy: common.getRemovalPolicy(),
       },
+      role: item1V2FunctionRole,
     });
     const item1FunctionV2Alias = new lambda.Alias(this, "Item1FunctionV2Alias", {
       aliasName: lambdaConfig.alias,
       version: item1FunctionV2.currentVersion,
+    });
+
+    // Create lambda role for v2/items/item2
+    const item2V2FunctionRole = new iam.Role(this, `Item2V2FunctionRole`, {
+      roleName: common.getResourceName("item2-v2-function-role"),
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });
 
     // v2/items/item2
@@ -140,6 +168,7 @@ export class ApiStack extends Stack {
       currentVersionOptions: {
         removalPolicy: common.getRemovalPolicy(),
       },
+      role: item2V2FunctionRole,
     });
     const item2FunctionV2Alias = new lambda.Alias(this, "Item2FunctionV2Alias", {
       aliasName: lambdaConfig.alias,

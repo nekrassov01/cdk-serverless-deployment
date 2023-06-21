@@ -652,7 +652,7 @@ export class Common {
     // File rotation configuration
     if (lifecycle) {
       bucket.addLifecycleRule({
-        id: this.getResourceName(`${bucketName}-lifecycle`),
+        id: this.getResourceName(bucketName),
         enabled: true,
         abortIncompleteMultipartUploadAfter: s3RemovalPolicy.durationDays,
         expiration: s3RemovalPolicy.durationDays,
