@@ -1,40 +1,62 @@
 #!/usr/bin/env node
-import { App, Tags } from "aws-cdk-lib";
+import { App } from "aws-cdk-lib";
+import { writeFileSync } from "fs";
 import "source-map-support/register";
-import { ApiStack } from "../lib/api-stack";
-import { CertificateStack } from "../lib/certificate-stack";
-import { HostingStack } from "../lib/hosting-stack";
-import { PipelineStack } from "../lib/pipeline-stack";
+import { Common } from "../lib/common";
+import { ApiStack } from "../lib/serverless-deployment-api-stack";
+import { CertStack } from "../lib/serverless-deployment-cert-stack";
+import { CicdStack } from "../lib/serverless-deployment-cicd-stack";
+import { HostingStack } from "../lib/serverless-deployment-hosting-stack";
 
+const common = new Common();
+
+// Accident prevention
+common.verifyEnvironment();
+common.verifyCallerAccount();
+common.verifyBranch();
+//common.verifyContainer();
+
+// Get `env` for deploying stacks from 'cdk.json'
+const targetEnv = common.getEnvironment();
 const env = {
-  account: process.env.CDK_DEFAULT_ACCOUNT,
-  region: process.env.CDK_DEFAULT_REGION,
+  account: targetEnv.account,
+  region: targetEnv.region,
 };
+
+// Create stack name list
+const stackMap = {
+  certStack: common.getId("CertStack"),
+  apiStack: common.getId("ApiStack"),
+  hostingStack: common.getId("HostingStack"),
+  cicdStack: common.getId("CicdStack"),
+};
+
+// Export stack name list to file
+writeFileSync("stack-map.json", JSON.stringify(stackMap, undefined, 2));
 
 // Deploy stacks
 const app = new App();
-
-const certificateStack = new CertificateStack(app, "CertificateStack", {
+const certStack = new CertStack(app, stackMap.certStack, {
+  env: env,
+  terminationProtection: common.isProductionOrStaging(),
+});
+const apiStack = new ApiStack(app, stackMap.apiStack, {
   env: env,
   terminationProtection: false,
 });
-const apiStack = new ApiStack(app, "ApiStack", {
+const hostingStack = new HostingStack(app, stackMap.hostingStack, {
   env: env,
   terminationProtection: false,
 });
-const hostingStack = new HostingStack(app, "HostingStack", {
-  env: env,
-  terminationProtection: false,
-});
-const pipelineStack = new PipelineStack(app, "PipelineStack", {
+const cicdStack = new CicdStack(app, stackMap.cicdStack, {
   env: env,
   terminationProtection: false,
 });
 
 // Add dependencies among stacks
-hostingStack.addDependency(certificateStack);
+hostingStack.addDependency(certStack);
 hostingStack.addDependency(apiStack);
-pipelineStack.addDependency(hostingStack);
+cicdStack.addDependency(hostingStack);
 
 // Tagging all resources
-Tags.of(app).add("Owner", app.node.tryGetContext("owner"));
+common.addOwnerTag(app);

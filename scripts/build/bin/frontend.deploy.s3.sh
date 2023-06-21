@@ -13,13 +13,13 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE_NAME ENVIRONMENT_NAME BRANCH BUCKET_NAME; do
+for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME; do
   check_variable "$var"
 done
 
 echo "PROCESS: Synchronizing contents to hosting bucket."
 
-frontend_version=$(get_ssm_parameter "/$SERVICE_NAME/$ENVIRONMENT_NAME/$BRANCH/version/frontend")
+frontend_version=$(get_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/version/frontend")
 deploy_content "$1" "s3://$BUCKET_NAME/$frontend_version"
 
 echo "SUCCESS: Application deployment completed successfully."

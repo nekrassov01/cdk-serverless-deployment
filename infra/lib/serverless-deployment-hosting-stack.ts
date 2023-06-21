@@ -1,7 +1,5 @@
 import {
-  App,
   Duration,
-  RemovalPolicy,
   Stack,
   StackProps,
   aws_certificatemanager as acm,
@@ -14,16 +12,14 @@ import {
   aws_ssm as ssm,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
+import { Common } from "./common";
 
-const app = new App();
-
-const serviceName = app.node.tryGetContext("serviceName");
-const environmentName = app.node.tryGetContext("environmentName");
-const branch = app.node.tryGetContext("branch");
-const hostedZoneName = app.node.tryGetContext("domain");
-const domainName = `${serviceName}.${hostedZoneName}`;
-const webAclArn = app.node.tryGetContext("webAclArn");
-const apiDefaultStageName = app.node.tryGetContext("apiDefaultStageName");
+const common = new Common();
+const env = common.getEnvironment();
+const domainName = common.getDomain();
+const lambdaConfig = common.defaultConfig.lambda;
+const apigatewayConfig = common.defaultConfig.apigateway;
+const codebuildConfig = common.defaultConfig.codebuild;
 
 export class HostingStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -36,19 +32,14 @@ export class HostingStack extends Stack {
     // Get version of application frontend from SSM parameter store
     const frontendVersion = ssm.StringParameter.valueForTypedStringParameterV2(
       this,
-      `/${serviceName}/${environmentName}/${branch}/version/frontend`,
+      common.getResourceNamePath("version/frontend"),
       ssm.ParameterValueType.STRING
     );
-
-    // Get route53 hosted zone
-    const hostedZone = route53.HostedZone.fromLookup(this, "HostedZone", {
-      domainName: hostedZoneName,
-    });
 
     // Get certificate ARN from SSM parameter store
     const certificateArn = ssm.StringParameter.valueForTypedStringParameterV2(
       this,
-      `/${serviceName}/${environmentName}/${branch}/certificate`,
+      common.getResourceNamePath("certificate"),
       ssm.ParameterValueType.STRING
     );
     const certificate = acm.Certificate.fromCertificateArn(this, "Certificate", certificateArn);
@@ -56,7 +47,7 @@ export class HostingStack extends Stack {
     // Get rest api from SSM parameter store
     const apiId = ssm.StringParameter.valueForTypedStringParameterV2(
       this,
-      `/${serviceName}/${environmentName}/${branch}/apigateway/api`,
+      common.getResourceNamePath("apigateway"),
       ssm.ParameterValueType.STRING
     );
 
@@ -64,44 +55,63 @@ export class HostingStack extends Stack {
      * Hosting bucket
      */
 
-    // Create hosting bucket
-    const hostingBucket = new s3.Bucket(this, "HostingBucket", {
-      bucketName: `${serviceName}-website`,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      publicReadAccess: false,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      enforceSSL: false,
-      removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-      versioned: false,
-      //websiteIndexDocument: "index.html", // error if this is present
-      //websiteErrorDocument: "index.html", // same as above
-      cors: [
-        {
-          allowedHeaders: ["*"],
-          allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.HEAD],
-          allowedOrigins: [`https://${domainName}`, `https://*.${domainName}`],
-          exposedHeaders: [],
-          maxAge: 3000,
-        },
-      ],
+    //// Create hosting bucket
+    //const hostingBucket = new s3.Bucket(this, "HostingBucket", {
+    //  bucketName: common.getResourceName("website"),
+    //  blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    //  publicReadAccess: false,
+    //  encryption: s3.BucketEncryption.S3_MANAGED,
+    //  enforceSSL: true,
+    //  removalPolicy: common.getS3Parameter().removalPolicy,
+    //  autoDeleteObjects: common.getS3Parameter().autoDeleteObjects,
+    //  versioned: false,
+    //  //websiteIndexDocument: "index.html", // error if this is present
+    //  //websiteErrorDocument: "index.html", // same as above
+    //  cors: [
+    //    {
+    //      allowedHeaders: ["*"],
+    //      allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.HEAD],
+    //      allowedOrigins: [`https://${domainName}`, `https://*.${domainName}`],
+    //      exposedHeaders: [],
+    //      maxAge: 3000,
+    //    },
+    //  ],
+    //});
+    const hostingBucket = common.createBucket(this, "HostingBucket", {
+      bucketName: "website",
+      lifecycle: false,
+      parameterStore: true,
+      objectOwnership: false,
+    });
+    hostingBucket.addCorsRule({
+      allowedHeaders: ["*"],
+      allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.HEAD],
+      allowedOrigins: [`https://${domainName}`, `https://*.${domainName}`],
+      exposedHeaders: [],
+      maxAge: 3000,
     });
 
     /**
      * CloudFront
      */
 
-    // Create CloudFront accesslog bucket
-    const cloudfrontLogBucket = new s3.Bucket(this, "CloudFrontLogBucket", {
-      bucketName: `${serviceName}-cloudfront-log`,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      publicReadAccess: false,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      enforceSSL: true,
-      removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-      versioned: false,
-      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED, // required in cloudfront accesslog bucket
+    //// Create CloudFront accesslog bucket
+    //const cloudfrontLogBucket = new s3.Bucket(this, "CloudFrontLogBucket", {
+    //  bucketName: common.getResourceName("cloudfront-log"),
+    //  blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    //  publicReadAccess: false,
+    //  encryption: s3.BucketEncryption.S3_MANAGED,
+    //  enforceSSL: true,
+    //  removalPolicy: common.getS3Parameter().removalPolicy,
+    //  autoDeleteObjects: common.getS3Parameter().autoDeleteObjects,
+    //  versioned: false,
+    //  objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED, // required in cloudfront accesslog bucket
+    //});
+    const cloudfrontLogBucket = common.createBucket(this, "CloudFrontLogBucket", {
+      bucketName: "cloudfront-log",
+      lifecycle: true,
+      parameterStore: true,
+      objectOwnership: true,
     });
 
     // Create OriginAccessControl
@@ -117,7 +127,7 @@ export class HostingStack extends Stack {
 
     // Create CloudFront distribution
     // NOTE: CloudFront continuous deployment does not support HTTP3
-    const distributionName = `${serviceName}-distribution`;
+    const distributionName = common.getResourceName("distribution");
     const indexPage = "index.html";
     const distribution = new cloudfront.Distribution(this, "Distribution", {
       enabled: true,
@@ -133,7 +143,7 @@ export class HostingStack extends Stack {
       logBucket: cloudfrontLogBucket,
       logFilePrefix: distributionName,
       logIncludesCookies: true,
-      webAclId: webAclArn,
+      webAclId: env.webAcl,
       defaultBehavior: {
         origin: new cloudfront_origins.S3Origin(hostingBucket, {
           originPath: `/${frontendVersion}`,
@@ -152,7 +162,7 @@ export class HostingStack extends Stack {
         smoothStreaming: false,
       },
       additionalBehaviors: {
-        [`/${apiDefaultStageName}/*`]: {
+        [`/${apigatewayConfig.stage}/*`]: {
           origin: new cloudfront_origins.HttpOrigin(`${apiId}.execute-api.${this.region}.${this.urlSuffix}`, {
             originPath: undefined,
             connectionAttempts: 3,
@@ -225,7 +235,9 @@ export class HostingStack extends Stack {
     const distributionARecord = new route53.ARecord(this, "DistributionARecord", {
       recordName: domainName,
       target: route53.RecordTarget.fromAlias(new route53_targets.CloudFrontTarget(distribution)),
-      zone: hostedZone,
+      zone: route53.HostedZone.fromLookup(this, "HostedZone", {
+        domainName: common.getHostedZone(),
+      }),
     });
     distributionARecord.node.addDependency(distribution);
 
@@ -235,18 +247,22 @@ export class HostingStack extends Stack {
 
     // Put distributionId to SSM parameter store
     new ssm.StringParameter(this, "CloudFrontProductionDistributionParameter", {
-      parameterName: `/${serviceName}/${environmentName}/${branch}/cloudfront/cfcd-production`,
+      parameterName: common.getResourceNamePath("cloudfront/cfcd-production"),
       stringValue: distribution.distributionId,
     });
     new ssm.StringParameter(this, "CloudFrontStagingDistributionParameter", {
-      parameterName: `/${serviceName}/${environmentName}/${branch}/cloudfront/cfcd-staging`,
+      parameterName: common.getResourceNamePath("cloudfront/cfcd-staging"),
       stringValue: "dummy",
     });
 
-    // Put bucketName to SSM parameter store
-    new ssm.StringParameter(this, "HostingBucketParameter", {
-      parameterName: `/${serviceName}/${environmentName}/${branch}/s3/hosting-bucket`,
-      stringValue: hostingBucket.bucketName,
-    });
+    //// Put bucketName to SSM parameter store
+    //new ssm.StringParameter(this, "HostingBucketParameter", {
+    //  parameterName: common.getResourceNamePath("s3/hosting-bucket"),
+    //  stringValue: hostingBucket.bucketName,
+    //});
+    //new ssm.StringParameter(this, "CloudFrontLogBucketParameter", {
+    //  parameterName: common.getResourceNamePath("s3/cloudfront-log-bucket"),
+    //  stringValue: cloudfrontLogBucket.bucketName,
+    //});
   }
 }

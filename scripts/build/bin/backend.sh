@@ -8,7 +8,7 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE_NAME ENVIRONMENT_NAME BRANCH BUCKET_NAME BUCKET_PATH FUNCTION_NAME FUNCTION_ALIAS FUNCTION_PACKAGE_NAME; do
+for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME BUCKET_PATH FUNCTION_NAME FUNCTION_ALIAS FUNCTION_PACKAGE_NAME; do
   check_variable "$var"
 done
 
@@ -21,7 +21,7 @@ npm install
 echo "PROCESS: Packaging lambda function."
 zip -r "$FUNCTION_PACKAGE_NAME" .
 
-echo "PROCESS: Packaging lambda function."
+echo "PROCESS: Uploading lambda function."
 aws s3 cp "$FUNCTION_PACKAGE_NAME" s3://"$BUCKET_NAME/$BUCKET_PATH"/
 
 echo "PROCESS: Updating lambda function."

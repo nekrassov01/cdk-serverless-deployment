@@ -8,7 +8,7 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE_NAME ENVIRONMENT_NAME BRANCH DISTRIBUTION_ID; do
+for var in SERVICE ENVIRONMENT BRANCH DISTRIBUTION_ID; do
   check_variable "$var"
 done
 
@@ -28,7 +28,7 @@ delete_continuous_deployment_policy "$continuous_deployment_policy_id" "$continu
 
 echo "PROCESS: Disabling CloudFront staging distribution."
 
-stg_distribution_id=$(get_ssm_parameter "/$SERVICE_NAME/$ENVIRONMENT_NAME/$BRANCH/cloudfront/cfcd-staging")
+stg_distribution_id=$(get_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/cloudfront/cfcd-staging")
 stg_distribution_config=$(get_distribution_config "$stg_distribution_id")
 stg_distribution_etag=$(echo "$stg_distribution_config" | jq -r ".ETag")
 updated_stg_distribution_config=$(echo "$stg_distribution_config" | jq ".DistributionConfig.Enabled = false | .DistributionConfig")

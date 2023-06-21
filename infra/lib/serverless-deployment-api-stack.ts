@@ -1,6 +1,4 @@
 import {
-  App,
-  RemovalPolicy,
   Stack,
   StackProps,
   aws_apigateway as apig,
@@ -10,85 +8,141 @@ import {
   aws_ssm as ssm,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
+import { Common } from "./common";
 
-const app = new App();
-
-const serviceName = app.node.tryGetContext("serviceName");
-const environmentName = app.node.tryGetContext("environmentName");
-const branch = app.node.tryGetContext("branch");
-const functionBucketName = app.node.tryGetContext("functionBucketName");
-const functionAlias = app.node.tryGetContext("functionAlias");
-const functionPackageName = app.node.tryGetContext("functionPackageName");
-const apiDefaultStageName = app.node.tryGetContext("apiDefaultStageName");
+const common = new Common();
+const env = common.getEnvironment();
+const domainName = common.getDomain();
+const lambdaConfig = common.defaultConfig.lambda;
+const apigatewayConfig = common.defaultConfig.apigateway;
+const codebuildConfig = common.defaultConfig.codebuild;
 
 export class ApiStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    // Get interface of function bucket from bucket name
-    const functionBucket = s3.Bucket.fromBucketName(this, "FunctionBucket", functionBucketName);
+    // Get function bucket from bucket name
+    const functionBucket = s3.Bucket.fromBucketName(
+      this,
+      "FunctionBucket",
+      common.getResourceName(lambdaConfig.bucket)
+    );
+
+    //for (const item of common.functions()) {
+    //  const funcName = common.capitalizeString(item.functionName);
+    //  const func = new lambda.Function(this, `${funcName}Function"`, {
+    //    functionName: common.getResourceName(item.functionName),
+    //    description: common.getResourceName(item.functionName),
+    //    code: lambda.Code.fromBucket(functionBucket, `${item.bucketPath}/${lambdaConfig.bucket}`),
+    //    handler: "index.handler",
+    //    layers: undefined,
+    //    architecture: lambda.Architecture.X86_64,
+    //    runtime: lambda.Runtime.NODEJS_18_X,
+    //    memorySize: undefined,
+    //    ephemeralStorageSize: undefined,
+    //    filesystem: undefined,
+    //    timeout: undefined,
+    //    role: undefined,
+    //    initialPolicy: undefined,
+    //    logRetention: undefined,
+    //    logRetentionRetryOptions: undefined,
+    //    logRetentionRole: undefined,
+    //    environment: undefined,
+    //    environmentEncryption: undefined,
+    //    currentVersionOptions: {
+    //      removalPolicy: RemovalPolicy.RETAIN,
+    //    },
+    //    deadLetterQueueEnabled: true,
+    //    deadLetterQueue: undefined,
+    //    deadLetterTopic: undefined,
+    //    codeSigningConfig: undefined,
+    //    events: undefined,
+    //    maxEventAge: undefined,
+    //    insightsVersion: undefined,
+    //    onSuccess: undefined,
+    //    onFailure: undefined,
+    //    reservedConcurrentExecutions: undefined,
+    //    retryAttempts: undefined,
+    //    tracing: undefined,
+    //    profiling: undefined,
+    //    profilingGroup: undefined,
+    //    vpc: undefined,
+    //    vpcSubnets: undefined,
+    //    securityGroups: undefined,
+    //    allowAllOutbound: undefined,
+    //    allowPublicSubnet: undefined,
+    //  });
+    //  const alias = new lambda.Alias(this, `${funcName}FunctionAlias"`, {
+    //    aliasName: lambdaConfig.alias,
+    //    version: func.currentVersion,
+    //  });
+    //}
 
     // v1/items/item1
     const item1Function = new lambda.Function(this, "Item1Function", {
-      functionName: `${serviceName}-item1`,
-      code: lambda.Code.fromBucket(functionBucket, `backend/item1/${functionPackageName}`),
+      functionName: common.getResourceName("item1"),
+      description: common.getResourceName("item1"),
+      code: lambda.Code.fromBucket(functionBucket, `backend/item1/${lambdaConfig.package}`),
       handler: "index.handler",
       runtime: lambda.Runtime.NODEJS_18_X,
       architecture: lambda.Architecture.X86_64,
       currentVersionOptions: {
-        removalPolicy: RemovalPolicy.RETAIN,
+        removalPolicy: common.getRemovalPolicy(),
       },
     });
     const item1FunctionAlias = new lambda.Alias(this, "Item1FunctionAlias", {
-      aliasName: functionAlias,
+      aliasName: lambdaConfig.alias,
       version: item1Function.currentVersion,
     });
 
     // v1/items/item2
     const item2Function = new lambda.Function(this, "Item2Function", {
-      functionName: `${serviceName}-item2`,
-      code: lambda.Code.fromBucket(functionBucket, `backend/item2/${functionPackageName}`),
+      functionName: common.getResourceName("item2"),
+      description: common.getResourceName("item2"),
+      code: lambda.Code.fromBucket(functionBucket, `backend/item2/${lambdaConfig.package}`),
       handler: "index.handler",
       runtime: lambda.Runtime.NODEJS_18_X,
       architecture: lambda.Architecture.X86_64,
       currentVersionOptions: {
-        removalPolicy: RemovalPolicy.RETAIN,
+        removalPolicy: common.getRemovalPolicy(),
       },
     });
     const item2FunctionAlias = new lambda.Alias(this, "Item2FunctionAlias", {
-      aliasName: functionAlias,
+      aliasName: lambdaConfig.alias,
       version: item2Function.currentVersion,
     });
 
     // v2/items/item1
     const item1FunctionV2 = new lambda.Function(this, "Item1FunctionV2", {
-      functionName: `${serviceName}-item1-v2`,
-      code: lambda.Code.fromBucket(functionBucket, `backend-v2/item1/${functionPackageName}`),
+      functionName: common.getResourceName("item1-v2"),
+      description: common.getResourceName("item1-v2"),
+      code: lambda.Code.fromBucket(functionBucket, `backend-v2/item1/${lambdaConfig.package}`),
       handler: "index.handler",
       runtime: lambda.Runtime.NODEJS_18_X,
       architecture: lambda.Architecture.X86_64,
       currentVersionOptions: {
-        removalPolicy: RemovalPolicy.RETAIN,
+        removalPolicy: common.getRemovalPolicy(),
       },
     });
     const item1FunctionV2Alias = new lambda.Alias(this, "Item1FunctionV2Alias", {
-      aliasName: functionAlias,
+      aliasName: lambdaConfig.alias,
       version: item1FunctionV2.currentVersion,
     });
 
     // v2/items/item2
     const item2FunctionV2 = new lambda.Function(this, "Item2FunctionV2", {
-      functionName: `${serviceName}-item2-v2`,
-      code: lambda.Code.fromBucket(functionBucket, `backend-v2/item2/${functionPackageName}`),
+      functionName: common.getResourceName("item2-v2"),
+      description: common.getResourceName("item2-v2"),
+      code: lambda.Code.fromBucket(functionBucket, `backend-v2/item2/${lambdaConfig.package}`),
       handler: "index.handler",
       runtime: lambda.Runtime.NODEJS_18_X,
       architecture: lambda.Architecture.X86_64,
       currentVersionOptions: {
-        removalPolicy: RemovalPolicy.RETAIN,
+        removalPolicy: common.getRemovalPolicy(),
       },
     });
     const item2FunctionV2Alias = new lambda.Alias(this, "Item2FunctionV2Alias", {
-      aliasName: functionAlias,
+      aliasName: lambdaConfig.alias,
       version: item2FunctionV2.currentVersion,
     });
 
@@ -98,20 +152,20 @@ export class ApiStack extends Stack {
 
     // Create log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, "ApiLogGroup", {
-      logGroupName: `${serviceName}/apigateway/${apiDefaultStageName}/log`,
-      removalPolicy: RemovalPolicy.DESTROY,
-      retention: logs.RetentionDays.THREE_DAYS,
+      logGroupName: common.getResourceNamePath(`apigateway/${apigatewayConfig.stage}`),
+      removalPolicy: common.getRemovalPolicy(),
+      retention: common.getLogsRetentionDays(),
     });
 
     // Create REST API
     const api = new apig.RestApi(this, "RestApi", {
-      restApiName: `${serviceName}-rest-api`,
-      description: `Rest API for ${serviceName}`,
+      restApiName: common.getResourceName("api"),
+      description: `Rest API for ${common.service}`,
       deploy: true,
       retainDeployments: true,
       deployOptions: {
-        stageName: apiDefaultStageName,
-        description: `Rest API default stage for ${serviceName}`,
+        stageName: apigatewayConfig.stage,
+        description: `Rest API default stage for ${common.service}`,
         documentationVersion: undefined,
         accessLogDestination: new apig.LogGroupLogDestination(apiLogGroup),
         accessLogFormat: apig.AccessLogFormat.jsonWithStandardFields(),
@@ -135,14 +189,6 @@ export class ApiStack extends Stack {
       defaultCorsPreflightOptions: undefined,
       disableExecuteApiEndpoint: false,
       cloudWatchRole: true,
-      //domainName: {
-      //  domainName: apiDomainName,
-      //  certificate: certificate,
-      //  basePath: undefined,
-      //  endpointType: apig.EndpointType.EDGE,
-      //  securityPolicy: apig.SecurityPolicy.TLS_1_2,
-      //  mtls: undefined,
-      //},
       endpointTypes: [apig.EndpointType.EDGE],
       endpointConfiguration: undefined,
       endpointExportName: undefined,
@@ -190,8 +236,6 @@ export class ApiStack extends Stack {
         "method.response.header.Access-Control-Allow-Origin": true,
       },
     };
-
-    //const base = api.root.addResource("api");
 
     // Create api resources: v1
     const v1 = api.root.addResource("v1");
@@ -249,17 +293,9 @@ export class ApiStack extends Stack {
       sourceArn: api.arnForExecuteApi("GET", "/v2/items/item2", api.deploymentStage.stageName),
     });
 
-    //// Alias record for apigateway
-    //const apiARecord = new route53.ARecord(this, "ApiARecord", {
-    //  recordName: apiDomainName,
-    //  target: route53.RecordTarget.fromAlias(new route53_targets.ApiGatewayDomain(api.domainName!)),
-    //  zone: hostedZone,
-    //});
-    //apiARecord.node.addDependency(api);
-
     // Put rest api to SSM parameter store
-    new ssm.StringParameter(this, "RestApiIdParameter", {
-      parameterName: `/${serviceName}/${environmentName}/${branch}/apigateway/api`,
+    new ssm.StringParameter(this, "ApiParameter", {
+      parameterName: common.getResourceNamePath("apigateway"),
       stringValue: api.restApiId,
     });
   }

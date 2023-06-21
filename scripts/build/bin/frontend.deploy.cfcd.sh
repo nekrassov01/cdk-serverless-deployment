@@ -8,13 +8,13 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE_NAME ENVIRONMENT_NAME BRANCH BUCKET_NAME DISTRIBUTION_ID; do
+for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME DISTRIBUTION_ID; do
   check_variable "$var"
 done
 
 echo "PROCESS: Copying CloudFront production distribution for staging distribution."
 
-frontend_version=$(get_ssm_parameter "/$SERVICE_NAME/$ENVIRONMENT_NAME/$BRANCH/version/frontend")
+frontend_version=$(get_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/version/frontend")
 prod_distribution_etag=$(get_distribution_etag "$DISTRIBUTION_ID")
 stg_distribution=$(copy_distribution "$DISTRIBUTION_ID" "$prod_distribution_etag")
 
@@ -70,7 +70,7 @@ wait_distribution_deploy "$stg_distribution_id"
 
 echo "PROCESS: Putting CloudFront staging distribution ID to SSM parameter store."
 
-put_ssm_parameter "/$SERVICE_NAME/$ENVIRONMENT_NAME/$BRANCH/cloudfront/cfcd-staging" "$stg_distribution_id"
+put_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/cloudfront/cfcd-staging" "$stg_distribution_id"
 
 echo "SUCCESS: CloudFront deployment completed successfully."
 exit 0

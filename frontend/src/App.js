@@ -7,7 +7,7 @@ function App() {
 
   useEffect(() => {
     fetch(
-      `https://${process.env.REACT_APP_BACKEND_DOMAIN_NAME}/${process.env.REACT_APP_BACKEND_STAGE_NAME}/${config.backendVersion}/items/item1`
+      `https://${process.env.REACT_APP_BACKEND_DOMAIN}/${process.env.REACT_APP_BACKEND_STAGE}/${config.backendVersion}/items/item1`
     )
       .then((res) => res.json())
       .then((data) => setData(data))
