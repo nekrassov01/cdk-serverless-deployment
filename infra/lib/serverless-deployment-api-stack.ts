@@ -2,7 +2,6 @@ import {
   Stack,
   StackProps,
   aws_apigateway as apig,
-  aws_iam as iam,
   aws_lambda as lambda,
   aws_logs as logs,
   aws_s3 as s3,
@@ -29,151 +28,127 @@ export class ApiStack extends Stack {
       common.getResourceName(lambdaConfig.bucket)
     );
 
-    //for (const item of common.functions()) {
-    //  const funcName = common.capitalizeString(item.functionName);
-    //  const func = new lambda.Function(this, `${funcName}Function"`, {
-    //    functionName: common.getResourceName(item.functionName),
-    //    description: common.getResourceName(item.functionName),
-    //    code: lambda.Code.fromBucket(functionBucket, `${item.bucketPath}/${lambdaConfig.bucket}`),
-    //    handler: "index.handler",
-    //    layers: undefined,
-    //    architecture: lambda.Architecture.X86_64,
-    //    runtime: lambda.Runtime.NODEJS_18_X,
-    //    memorySize: undefined,
-    //    ephemeralStorageSize: undefined,
-    //    filesystem: undefined,
-    //    timeout: undefined,
-    //    role: undefined,
-    //    initialPolicy: undefined,
-    //    logRetention: undefined,
-    //    logRetentionRetryOptions: undefined,
-    //    logRetentionRole: undefined,
-    //    environment: undefined,
-    //    environmentEncryption: undefined,
-    //    currentVersionOptions: {
-    //      removalPolicy: RemovalPolicy.RETAIN,
-    //    },
-    //    deadLetterQueueEnabled: true,
-    //    deadLetterQueue: undefined,
-    //    deadLetterTopic: undefined,
-    //    codeSigningConfig: undefined,
-    //    events: undefined,
-    //    maxEventAge: undefined,
-    //    insightsVersion: undefined,
-    //    onSuccess: undefined,
-    //    onFailure: undefined,
-    //    reservedConcurrentExecutions: undefined,
-    //    retryAttempts: undefined,
-    //    tracing: undefined,
-    //    profiling: undefined,
-    //    profilingGroup: undefined,
-    //    vpc: undefined,
-    //    vpcSubnets: undefined,
-    //    securityGroups: undefined,
-    //    allowAllOutbound: undefined,
-    //    allowPublicSubnet: undefined,
-    //  });
-    //  const alias = new lambda.Alias(this, `${funcName}FunctionAlias"`, {
-    //    aliasName: lambdaConfig.alias,
-    //    version: func.currentVersion,
-    //  });
-    //}
-
-    // Create lambda role for v1/items/item1
-    const item1FunctionRole = new iam.Role(this, "Item1FunctionRole", {
-      roleName: common.getResourceName("item1-function-role"),
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-    });
-
-    // v1/items/item1
-    const item1Function = new lambda.Function(this, "Item1Function", {
-      functionName: common.getResourceName("item1"),
-      description: common.getResourceName("item1"),
+    // Create function
+    const item1FunctionAlias = common.createNodeJsFunction(this, "Item1Function", {
+      functionName: "item1",
+      description: "item1",
       code: lambda.Code.fromBucket(functionBucket, `backend/item1/${lambdaConfig.package}`),
-      handler: "index.handler",
-      runtime: lambda.Runtime.NODEJS_18_X,
-      architecture: lambda.Architecture.X86_64,
-      currentVersionOptions: {
-        removalPolicy: common.getRemovalPolicy(),
-      },
-      role: item1FunctionRole,
+      parameterStore: false,
     });
-    const item1FunctionAlias = new lambda.Alias(this, "Item1FunctionAlias", {
-      aliasName: lambdaConfig.alias,
-      version: item1Function.currentVersion,
-    });
-
-    // Create lambda role for v1/items/item2
-    const item2FunctionRole = new iam.Role(this, "Item2FunctionRole", {
-      roleName: common.getResourceName("item2-function-role"),
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-    });
-
-    // v1/items/item2
-    const item2Function = new lambda.Function(this, "Item2Function", {
-      functionName: common.getResourceName("item2"),
-      description: common.getResourceName("item2"),
+    const item2FunctionAlias = common.createNodeJsFunction(this, "Item2Function", {
+      functionName: "item2",
+      description: "item2",
       code: lambda.Code.fromBucket(functionBucket, `backend/item2/${lambdaConfig.package}`),
-      handler: "index.handler",
-      runtime: lambda.Runtime.NODEJS_18_X,
-      architecture: lambda.Architecture.X86_64,
-      currentVersionOptions: {
-        removalPolicy: common.getRemovalPolicy(),
-      },
-      role: item2FunctionRole,
+      parameterStore: false,
     });
-    const item2FunctionAlias = new lambda.Alias(this, "Item2FunctionAlias", {
-      aliasName: lambdaConfig.alias,
-      version: item2Function.currentVersion,
-    });
-
-    // Create lambda role for v2/items/item1
-    const item1V2FunctionRole = new iam.Role(this, "Item1V2FunctionRole", {
-      roleName: common.getResourceName("item1-v2-function-role"),
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-    });
-
-    // v2/items/item1
-    const item1FunctionV2 = new lambda.Function(this, "Item1FunctionV2", {
-      functionName: common.getResourceName("item1-v2"),
-      description: common.getResourceName("item1-v2"),
+    const item1FunctionV2Alias = common.createNodeJsFunction(this, "Item1FunctionV2", {
+      functionName: "item1-v2",
+      description: "item1-v2",
       code: lambda.Code.fromBucket(functionBucket, `backend-v2/item1/${lambdaConfig.package}`),
-      handler: "index.handler",
-      runtime: lambda.Runtime.NODEJS_18_X,
-      architecture: lambda.Architecture.X86_64,
-      currentVersionOptions: {
-        removalPolicy: common.getRemovalPolicy(),
-      },
-      role: item1V2FunctionRole,
+      parameterStore: false,
     });
-    const item1FunctionV2Alias = new lambda.Alias(this, "Item1FunctionV2Alias", {
-      aliasName: lambdaConfig.alias,
-      version: item1FunctionV2.currentVersion,
-    });
-
-    // Create lambda role for v2/items/item2
-    const item2V2FunctionRole = new iam.Role(this, "Item2V2FunctionRole", {
-      roleName: common.getResourceName("item2-v2-function-role"),
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-    });
-
-    // v2/items/item2
-    const item2FunctionV2 = new lambda.Function(this, "Item2FunctionV2", {
-      functionName: common.getResourceName("item2-v2"),
-      description: common.getResourceName("item2-v2"),
+    const item2FunctionV2Alias = common.createNodeJsFunction(this, "Item2FunctionV2", {
+      functionName: "item2-v2",
+      description: "item2-v2",
       code: lambda.Code.fromBucket(functionBucket, `backend-v2/item2/${lambdaConfig.package}`),
-      handler: "index.handler",
-      runtime: lambda.Runtime.NODEJS_18_X,
-      architecture: lambda.Architecture.X86_64,
-      currentVersionOptions: {
-        removalPolicy: common.getRemovalPolicy(),
-      },
-      role: item2V2FunctionRole,
+      parameterStore: false,
     });
-    const item2FunctionV2Alias = new lambda.Alias(this, "Item2FunctionV2Alias", {
-      aliasName: lambdaConfig.alias,
-      version: item2FunctionV2.currentVersion,
-    });
+
+    //// Create lambda role for v1/items/item1
+    //const item1FunctionRole = new iam.Role(this, "Item1FunctionRole", {
+    //  roleName: common.getResourceName("item1-function-role"),
+    //  assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+    //});
+    //
+    //// v1/items/item1
+    //const item1Function = new lambda.Function(this, "Item1Function", {
+    //  functionName: common.getResourceName("item1"),
+    //  description: common.getResourceName("item1"),
+    //  code: lambda.Code.fromBucket(functionBucket, `backend/item1/${lambdaConfig.package}`),
+    //  handler: "index.handler",
+    //  runtime: lambda.Runtime.NODEJS_18_X,
+    //  architecture: lambda.Architecture.X86_64,
+    //  currentVersionOptions: {
+    //    removalPolicy: common.getRemovalPolicy(),
+    //  },
+    //  role: item1FunctionRole,
+    //});
+    //const item1FunctionAlias = new lambda.Alias(this, "Item1FunctionAlias", {
+    //  aliasName: lambdaConfig.alias,
+    //  version: item1Function.currentVersion,
+    //});
+    //
+    //// Create lambda role for v1/items/item2
+    //const item2FunctionRole = new iam.Role(this, "Item2FunctionRole", {
+    //  roleName: common.getResourceName("item2-function-role"),
+    //  assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+    //});
+    //
+    //// v1/items/item2
+    //const item2Function = new lambda.Function(this, "Item2Function", {
+    //  functionName: common.getResourceName("item2"),
+    //  description: common.getResourceName("item2"),
+    //  code: lambda.Code.fromBucket(functionBucket, `backend/item2/${lambdaConfig.package}`),
+    //  handler: "index.handler",
+    //  runtime: lambda.Runtime.NODEJS_18_X,
+    //  architecture: lambda.Architecture.X86_64,
+    //  currentVersionOptions: {
+    //    removalPolicy: common.getRemovalPolicy(),
+    //  },
+    //  role: item2FunctionRole,
+    //});
+    //const item2FunctionAlias = new lambda.Alias(this, "Item2FunctionAlias", {
+    //  aliasName: lambdaConfig.alias,
+    //  version: item2Function.currentVersion,
+    //});
+    //
+    //// Create lambda role for v2/items/item1
+    //const item1V2FunctionRole = new iam.Role(this, "Item1V2FunctionRole", {
+    //  roleName: common.getResourceName("item1-v2-function-role"),
+    //  assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+    //});
+    //
+    //// v2/items/item1
+    //const item1FunctionV2 = new lambda.Function(this, "Item1FunctionV2", {
+    //  functionName: common.getResourceName("item1-v2"),
+    //  description: common.getResourceName("item1-v2"),
+    //  code: lambda.Code.fromBucket(functionBucket, `backend-v2/item1/${lambdaConfig.package}`),
+    //  handler: "index.handler",
+    //  runtime: lambda.Runtime.NODEJS_18_X,
+    //  architecture: lambda.Architecture.X86_64,
+    //  currentVersionOptions: {
+    //    removalPolicy: common.getRemovalPolicy(),
+    //  },
+    //  role: item1V2FunctionRole,
+    //});
+    //const item1FunctionV2Alias = new lambda.Alias(this, "Item1FunctionV2Alias", {
+    //  aliasName: lambdaConfig.alias,
+    //  version: item1FunctionV2.currentVersion,
+    //});
+    //
+    //// Create lambda role for v2/items/item2
+    //const item2V2FunctionRole = new iam.Role(this, "Item2V2FunctionRole", {
+    //  roleName: common.getResourceName("item2-v2-function-role"),
+    //  assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+    //});
+    //
+    //// v2/items/item2
+    //const item2FunctionV2 = new lambda.Function(this, "Item2FunctionV2", {
+    //  functionName: common.getResourceName("item2-v2"),
+    //  description: common.getResourceName("item2-v2"),
+    //  code: lambda.Code.fromBucket(functionBucket, `backend-v2/item2/${lambdaConfig.package}`),
+    //  handler: "index.handler",
+    //  runtime: lambda.Runtime.NODEJS_18_X,
+    //  architecture: lambda.Architecture.X86_64,
+    //  currentVersionOptions: {
+    //    removalPolicy: common.getRemovalPolicy(),
+    //  },
+    //  role: item2V2FunctionRole,
+    //});
+    //const item2FunctionV2Alias = new lambda.Alias(this, "Item2FunctionV2Alias", {
+    //  aliasName: lambdaConfig.alias,
+    //  version: item2FunctionV2.currentVersion,
+    //});
 
     /**
      * API Gateway

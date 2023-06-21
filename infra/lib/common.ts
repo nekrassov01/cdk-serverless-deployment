@@ -6,12 +6,16 @@ import {
   Duration,
   Lazy,
   RemovalPolicy,
+  Size,
   Tags,
   aws_codepipeline_actions as actions,
   aws_ec2 as ec2,
   aws_ecr as ecr,
+  aws_iam as iam,
+  aws_lambda as lambda,
   aws_logs as logs,
   aws_s3 as s3,
+  aws_sqs as sqs,
   aws_ssm as ssm,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
@@ -677,5 +681,90 @@ export class Common {
     }
 
     return bucket;
+  }
+
+  public createNodeJsFunction(
+    scope: Construct,
+    id: string,
+    {
+      functionName,
+      description,
+      code,
+      handler = "index.handler",
+      layers,
+      timeout = Duration.minutes(5),
+      memorySize = 128,
+      ephemeralStorageSize = Size.mebibytes(512),
+      environment,
+      parameterStore = false,
+    }: {
+      functionName: string;
+      description?: string;
+      code: lambda.Code;
+      handler?: string;
+      layers?: lambda.ILayerVersion[] | undefined;
+      timeout?: Duration;
+      memorySize?: number;
+      ephemeralStorageSize?: Size;
+      environment?: { [key: string]: string };
+      parameterStore: boolean;
+    }
+  ): lambda.Alias {
+    const funcName = this.convertPascalToKebabCase(functionName);
+
+    // Create role
+    const role = new iam.Role(scope, `${id}Role`, {
+      roleName: this.getResourceName(`${funcName}-role`),
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+    });
+
+    // Create queue
+    const deadLetterQueue = new sqs.Queue(scope, `${id}Queue`, {
+      queueName: this.getResourceName(`${funcName}-queue`),
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      removalPolicy: this.getRemovalPolicy(),
+      retentionPeriod: Duration.days(7),
+    });
+
+    // Create function
+    const func = new lambda.Function(scope, id, {
+      functionName: this.getResourceName(funcName),
+      description: description,
+      code: code,
+      handler: handler,
+      layers: layers,
+      architecture: lambda.Architecture.X86_64,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      memorySize: memorySize,
+      ephemeralStorageSize: ephemeralStorageSize,
+      timeout: timeout,
+      role: role,
+      logRetention: this.getLogsRetentionDays(),
+      environment: environment,
+      currentVersionOptions: {
+        removalPolicy: RemovalPolicy.RETAIN,
+      },
+      deadLetterQueueEnabled: true,
+      deadLetterQueue: deadLetterQueue,
+      reservedConcurrentExecutions: 1,
+      retryAttempts: 2,
+    });
+
+    // Update function alias
+    const alias = new lambda.Alias(scope, `${id}Alias"`, {
+      aliasName: this.defaultConfig.lambda.alias,
+      version: func.currentVersion,
+    });
+
+    // Put bucket name to SSM parameter store
+    if (parameterStore) {
+      new ssm.StringParameter(scope, `${id}Parameter`, {
+        parameterName: this.getResourceNamePath(`function/${funcName}`),
+        stringValue: alias.functionArn,
+      });
+    }
+
+    return alias;
   }
 }

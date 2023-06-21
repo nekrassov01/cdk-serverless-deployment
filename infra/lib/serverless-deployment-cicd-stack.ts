@@ -13,7 +13,6 @@ import {
   aws_logs as logs,
   aws_s3 as s3,
   aws_sns as sns,
-  aws_ssm as ssm,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { Common } from "./common";
@@ -78,8 +77,8 @@ export class CicdStack extends Stack {
           statements: [
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
-              actions: ["ssm:GetParameter", "ssm:PutParameter"],
-              resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${common.getResourceNamePath("*")}`],
+              actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter"],
+              resources: [`arn:aws:ssm:${this.region}:${this.account}:*`],
             }),
             new iam.PolicyStatement({
               resources: [`arn:aws:codepipeline:${this.region}:${this.account}:*`],
@@ -201,8 +200,8 @@ export class CicdStack extends Stack {
           statements: [
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
-              actions: ["ssm:GetParameter", "ssm:PutParameter"],
-              resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${common.getResourceNamePath("*")}`],
+              actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter"],
+              resources: [`arn:aws:ssm:${this.region}:${this.account}:*`],
             }),
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
@@ -264,27 +263,15 @@ export class CicdStack extends Stack {
         },
         BUCKET_NAME: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
-          value: ssm.StringParameter.fromStringParameterName(
-            this,
-            "FrontendDeployProjectParameter1",
-            common.getResourceNamePath("s3/website")
-          ),
+          value: common.getResourceNamePath("s3/website"),
         },
         PRODUCTION_DISTRIBUTION_ID: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
-          value: ssm.StringParameter.fromStringParameterName(
-            this,
-            "FrontendDeployProjectParameter2",
-            common.getResourceNamePath("cloudfront/cfcd-production")
-          ),
+          value: common.getResourceNamePath("cloudfront/cfcd-production"),
         },
         FRONTEND_VERSION: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
-          value: ssm.StringParameter.fromStringParameterName(
-            this,
-            "FrontendDeployProjectParameter3",
-            common.getResourceNamePath("version/frontend")
-          ),
+          value: common.getResourceNamePath("version/frontend"),
         },
       },
       badge: false,
@@ -309,8 +296,8 @@ export class CicdStack extends Stack {
           statements: [
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
-              actions: ["ssm:GetParameter", "ssm:PutParameter"],
-              resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${common.getResourceNamePath("*")}`],
+              actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter"],
+              resources: [`arn:aws:ssm:${this.region}:${this.account}:*`],
             }),
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
@@ -366,19 +353,11 @@ export class CicdStack extends Stack {
         },
         PRODUCTION_DISTRIBUTION_ID: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
-          value: ssm.StringParameter.fromStringParameterName(
-            this,
-            "FrontendPromoteProjectParameter1",
-            common.getResourceNamePath("cloudfront/cfcd-production")
-          ),
+          value: common.getResourceNamePath("cloudfront/cfcd-production"),
         },
         STAGING_DISTRIBUTION_ID: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
-          value: ssm.StringParameter.fromStringParameterName(
-            this,
-            "FrontendPromoteProjectParameter2",
-            common.getResourceNamePath("cloudfront/cfcd-staging")
-          ),
+          value: common.getResourceNamePath("cloudfront/cfcd-staging"),
         },
       },
       badge: false,
@@ -469,9 +448,9 @@ export class CicdStack extends Stack {
       externalEntityLink: `https://us-east-1.console.aws.amazon.com/cloudfront/v3/home#/distributions/${distributionId}`,
       additionalInformation: `Access the staging distribution with the "aws-cf-cd-staging: true" request header and test your application.
       Once approved, the production distribution configuration will be overridden with staging configuration.`,
-      notificationTopic: new sns.Topic(this, "ApprovalStageNotification", {
-        topicName: common.getResourceName("frontend-approval-notification"),
-        displayName: common.getResourceName("frontend-approval-notification"),
+      notificationTopic: new sns.Topic(this, "ApprovalStageTopic", {
+        topicName: common.getResourceName("frontend-approval-topic"),
+        displayName: common.getResourceName("frontend-approval-topic"),
       }),
       notifyEmails: common.addresses,
       runOrder: 1,
@@ -562,8 +541,8 @@ export class CicdStack extends Stack {
           statements: [
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
-              actions: ["ssm:GetParameter", "ssm:PutParameter"],
-              resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${common.getResourceNamePath("*")}`],
+              actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter"],
+              resources: [`arn:aws:ssm:${this.region}:${this.account}:*`],
             }),
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
@@ -624,19 +603,11 @@ export class CicdStack extends Stack {
         },
         PRODUCTION_DISTRIBUTION_ID: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
-          value: ssm.StringParameter.fromStringParameterName(
-            this,
-            "FrontendCleanupProjectParameter1",
-            common.getResourceNamePath("cloudfront/cfcd-production")
-          ),
+          value: common.getResourceNamePath("cloudfront/cfcd-production"),
         },
         STAGING_DISTRIBUTION_ID: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
-          value: ssm.StringParameter.fromStringParameterName(
-            this,
-            "FrontendCleanupProjectParameter2",
-            common.getResourceNamePath("cloudfront/cfcd-staging")
-          ),
+          value: common.getResourceNamePath("cloudfront/cfcd-staging"),
         },
       },
       badge: false,

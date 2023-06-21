@@ -53,9 +53,9 @@ const cicdStack = new CicdStack(app, stackMap.cicdStack, {
 });
 
 // Add dependencies among stacks
-hostingStack.addDependency(certStack);
-hostingStack.addDependency(apiStack);
-cicdStack.addDependency(hostingStack);
+//hostingStack.addDependency(certStack);
+//hostingStack.addDependency(apiStack);
+//cicdStack.addDependency(hostingStack);
 
 // Tagging all resources
 common.addOwnerTag(app);
