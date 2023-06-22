@@ -667,7 +667,7 @@ export class CicdStack extends Stack {
 
     // Create backend pipelines
     for (const item of backends) {
-      const functionName = common.convertKebabToPascalCase(item.name);
+      const functionName = Common.convertKebabToPascalCase(item.name);
 
       // Create codebuild project role for backend
       const backendDeployProjectRole = new iam.Role(this, `${functionName}DeployProjectRole`, {

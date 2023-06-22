@@ -57,56 +57,57 @@ export class Common {
   public readonly pipelines = app.node.tryGetContext("pipelines");
   public readonly containers = app.node.tryGetContext("containers");
 
-  // Verify environment settings
-  public verifyEnvironment(): void {
+  // Validate environment settings and return bool
+  private isValidEnvironment(): boolean {
     try {
-      const isValidEnvironment = () => {
-        const envNames = this.environments.map((obj: ICommonParameter) => obj.name);
-        const envAccounts = this.environments.map((obj: ICommonParameter) => obj.account);
-        const envNameUniqueLength = Array.from(new Set(envNames)).length;
-        const envAccountsUniqueLength = Array.from(new Set(envAccounts)).length;
+      const targetEnv = this.environment;
+      const envNames = this.environments.map((obj: ICommonParameter) => obj.name);
+      const envNameUniqueLength = Array.from(new Set(envNames)).length;
 
-        let isValid = true;
-
-        // Is the environment name defined in `context.environment` valid
-        if (!validEnvNames.includes(this.environment)) {
-          isValid = false;
-        }
-
-        // Is each environment name defined in `context.environments` valid
-        envNames.forEach((value: EnvironmentName) => {
-          if (!validEnvNames.includes(value)) {
-            isValid = false;
-          }
-        });
-
-        // Are there any duplicate environment names in `context.environments`
-        if (envNames.length !== envNameUniqueLength) {
-          isValid = false;
-        }
-
-        // Are there any duplicate environment accounts in `context.environments`
-        if (envNameUniqueLength !== envAccountsUniqueLength) {
-          isValid = false;
-        }
-
-        // Whether the environment name defined in `context.environment` is in `context.environments`
-        if (
-          envNames.filter((value: EnvironmentName) => {
-            return value === this.environment;
-          }).length !== 1
-        ) {
-          isValid = false;
-        }
-
-        return isValid;
-      };
-
-      if (!isValidEnvironment()) {
-        throw new Error(this.getConsoleMessage("Environment setting in 'cdk.json' not valid."));
+      // Is the environment name defined in `environment` valid
+      if (!validEnvNames.includes(targetEnv)) {
+        return false;
       }
+
+      // Is each environment name defined in `environments` valid
+      envNames.forEach((value: EnvironmentName): boolean | void => {
+        if (!validEnvNames.includes(value)) {
+          return false;
+        }
+      });
+
+      // Are there any duplicate environment names in `environments`
+      if (envNames.length !== envNameUniqueLength) {
+        return false;
+      }
+
+      // Are there any duplicate environment accounts in `environments`
+      if (
+        envNameUniqueLength !==
+        Array.from(new Set(this.environments.map((obj: ICommonParameter) => obj.account))).length
+      ) {
+        return false;
+      }
+
+      // Whether the environment name defined in `environment` is in `environments`
+      if (
+        envNames.filter((value: EnvironmentName) => {
+          return value === targetEnv;
+        }).length !== 1
+      ) {
+        return false;
+      }
+
+      return true;
     } catch (e) {
       throw e;
+    }
+  }
+
+  // Verify environment settings
+  public verifyEnvironment(): void {
+    if (!this.isValidEnvironment()) {
+      throw new Error(this.getConsoleMessage("Environment setting in 'cdk.json' not valid."));
     }
   }
 
@@ -203,6 +204,57 @@ export class Common {
     );
   }
 
+  // Validate container setting and return bool
+  private isValidContainer(containerConfig: ICommonParameter): boolean {
+    try {
+      // Is the environment name valid
+      if (!validEnvNames.includes(containerConfig.environment)) {
+        return false;
+      }
+
+      // Is other parameters present
+      if (
+        !Object.keys(containerConfig.repository).length ||
+        !Object.keys(containerConfig.imagePath).length ||
+        !Object.keys(containerConfig.version).length ||
+        !Object.keys(containerConfig.tag).length
+      ) {
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  // Get remote ECR repositories
+  private async getRemoteContainerRepositories(env: ICommonParameter): Promise<DescribeRepositoriesCommandOutput> {
+    try {
+      const client = new ECRClient({ region: env.region });
+      return await client.send(new DescribeRepositoriesCommand({ registryId: env.Account }));
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  // Verify remote ECR repository exists
+  private verifyContainerRepository(env: ICommonParameter, containerConfig: ICommonParameter) {
+    try {
+      this.getRemoteContainerRepositories(env).then((obj) => {
+        if (
+          obj.repositories?.find((repo) => {
+            return repo.repositoryName === containerConfig.repository;
+          }) === undefined
+        ) {
+          throw new Error(this.getConsoleMessage(`Container repository '${containerConfig.repository}' not found.`));
+        }
+      });
+    } catch (e) {
+      throw e;
+    }
+  }
+
   // Verify container setting and ECR repository exists
   public verifyContainer(): void {
     try {
@@ -211,51 +263,20 @@ export class Common {
 
       containerNames.map((imageName: string) => {
         const config = this.getContainer(imageName);
-        let isValid = true;
+        const repoEnv = this.getEnvironment(config.environment);
+        const templateFile = `${config.imagePath}/template`;
 
-        const isValidConfig = () => {
-          // Is the environment name valid
-          if (!validEnvNames.includes(config.environment)) {
-            isValid = false;
-          }
-
-          // Is other parameters present
-          if (
-            !Object.keys(config.repository).length ||
-            !Object.keys(config.imagePath).length ||
-            !Object.keys(config.version).length ||
-            !Object.keys(config.tag).length
-          ) {
-            isValid = false;
-          }
-
-          return isValid;
-        };
-        if (!isValidConfig()) {
+        if (!this.isValidContainer(config)) {
           throw new Error(this.getConsoleMessage(`Container settings '${imageName}' in 'cdk.json' not valid.`));
         }
 
         // Does the template file exist
-        const templateFile = `${config.imagePath}/template`;
         if (!existsSync(templateFile)) {
-          throw new Error(`Template file not found. Please check '${templateFile}' exists.`);
+          throw new Error(this.getConsoleMessage(`Template file not found. Please check '${templateFile}' exists.`));
         }
 
         // Check if the ECR repository exists
-        const repoEnv = this.getEnvironment(config.environment);
-        const getContainerRepositories = async (): Promise<DescribeRepositoriesCommandOutput> => {
-          const client = new ECRClient({ region: repoEnv.region });
-          return await client.send(new DescribeRepositoriesCommand({ registryId: repoEnv.Account }));
-        };
-        getContainerRepositories().then((obj) => {
-          if (
-            obj.repositories?.find((repo) => {
-              return repo.repositoryName === config.repository;
-            }) === undefined
-          ) {
-            throw new Error(this.getConsoleMessage(`Container repository '${config.repository}' not found.`));
-          }
-        });
+        this.verifyContainerRepository(repoEnv, config);
       });
 
       // Are there any duplicate container names in `params.containers`
@@ -283,27 +304,27 @@ export class Common {
   }
 
   // Referenced on <https://sdhuang32.github.io/ssm-StringParameter-valueFromLookup-use-cases-and-internal-synth-flow/>
-  public lazifyString(value: string): string {
+  public static lazifyString(value: string): string {
     return Lazy.string({ produce: () => value });
   }
 
   // Converting dummy strings: Workaround <https://github.com/aws/aws-cdk/issues/8699>
-  public sanitizeString(value: string): string {
+  public static sanitizeString(value: string): string {
     return value.includes("dummy-value") ? "dummy" : value;
   }
 
   // Converting dummy ARNs: Workaround <Same as above>
-  public sanitizeArn(value: string): string {
+  public static sanitizeArn(value: string): string {
     return value.includes("dummy-value") ? "arn:aws:service:us-east-1:123456789012:entity/dummy-value" : value;
   }
 
   // Converting Pascal case to Kebab case
-  public convertPascalToKebabCase(value: string): string {
+  public static convertPascalToKebabCase(value: string): string {
     return value.replace(/\.?([A-Z]+)/g, (x, y) => "-" + y.toLowerCase()).replace(/^-/, "");
   }
 
   // Converting Kebab case to Pascal case
-  public convertKebabToPascalCase(value: string): string {
+  public static convertKebabToPascalCase(value: string): string {
     return value
       .split("-")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -333,9 +354,9 @@ export class Common {
   // Add prefix to resource ID
   public getId(value: string): string {
     return (
-      this.convertKebabToPascalCase(this.service) +
-      this.convertKebabToPascalCase(this.environment) +
-      this.convertKebabToPascalCase(this.branch) +
+      Common.convertKebabToPascalCase(this.service) +
+      Common.convertKebabToPascalCase(this.environment) +
+      Common.convertKebabToPascalCase(this.branch) +
       value
     );
   }
@@ -364,10 +385,10 @@ export class Common {
 
   // Create a domain name by concatenating strings
   public getDomain(): string {
-    const environment = this.convertPascalToKebabCase(this.environment);
+    const environment = Common.convertPascalToKebabCase(this.environment);
     return this.isProductionOrStaging()
       ? `${environment}.${this.getEnvironment().hostedZone}`
-      : `${environment}-${this.convertPascalToKebabCase(this.branch)}.${this.getEnvironment().hostedZone}`;
+      : `${environment}-${Common.convertPascalToKebabCase(this.branch)}.${this.getEnvironment().hostedZone}`;
   }
 
   // Default removal policy
@@ -710,7 +731,7 @@ export class Common {
       parameterStore: boolean;
     }
   ): lambda.Alias {
-    const funcName = this.convertPascalToKebabCase(functionName);
+    const funcName = Common.convertPascalToKebabCase(functionName);
 
     // Create role
     const role = new iam.Role(scope, `${id}Role`, {
@@ -768,3 +789,10 @@ export class Common {
     return alias;
   }
 }
+
+// Accident prevention
+const common = new Common();
+common.verifyEnvironment();
+common.verifyCallerAccount();
+common.verifyBranch();
+common.verifyContainer();

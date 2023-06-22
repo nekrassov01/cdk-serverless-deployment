@@ -17,7 +17,9 @@ function App() {
   return (
     <div className="dark-container">
       {error && <div>Error: {error}</div>}
-      <pre className="dark-code-block">{JSON.stringify(data, null, 2)}</pre>
+      <pre className="dark-code-block">
+        <code>{JSON.stringify(data, null, 2)}</code>
+      </pre>
     </div>
   );
 }

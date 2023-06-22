@@ -10,11 +10,6 @@ import { HostingStack } from "../lib/serverless-deployment-hosting-stack";
 
 const common = new Common();
 
-// Accident prevention
-common.verifyEnvironment();
-common.verifyCallerAccount();
-common.verifyBranch();
-
 // Get `env` for deploying stacks from 'cdk.json'
 const targetEnv = common.getEnvironment();
 const env = {
@@ -53,9 +48,9 @@ const cicdStack = new CicdStack(app, stackMap.cicdStack, {
 });
 
 // Add dependencies among stacks
-//hostingStack.addDependency(certStack);
-//hostingStack.addDependency(apiStack);
-//cicdStack.addDependency(hostingStack);
+hostingStack.addDependency(certStack);
+hostingStack.addDependency(apiStack);
+cicdStack.addDependency(hostingStack);
 
 // Tagging all resources
 common.addOwnerTag(app);
