@@ -21,6 +21,5 @@ test("renders data from API", async () => {
   await screen.findByText(/apiVersion/);
   await screen.findByText(/resource/);
 
-  // モックをクリア
   jest.clearAllMocks();
 });

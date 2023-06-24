@@ -75,6 +75,11 @@ export class CicdStack extends Stack {
         ["PipelineHandlerRoleAdditionalPolicy"]: new iam.PolicyDocument({
           statements: [
             new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+              resources: [`arn:aws:logs:${this.region}:${this.account}:*`],
+            }),
+            new iam.PolicyStatement({
               resources: [`arn:aws:codepipeline:${this.region}:${this.account}:*`],
               actions: [
                 "codepipeline:GetPipeline",
@@ -114,8 +119,8 @@ export class CicdStack extends Stack {
             "bash",
             "-c",
             [
-              "export GOPATH=/tmp/go-path",
               "export GOCACHE=/tmp/go-cache",
+              "export GOPATH=/tmp/go-path",
               "GOOS=linux go build -o /asset-output/main main.go",
             ].join(" && "),
           ],

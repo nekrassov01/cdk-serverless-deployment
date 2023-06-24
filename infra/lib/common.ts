@@ -736,12 +736,24 @@ export class Common {
     }
   ): lambda.Alias {
     const funcName = Common.convertPascalToKebabCase(functionName);
+    const env = this.getEnvironment();
 
     // Create role if undefined
     if (!role) {
       role = new iam.Role(scope, `${id}Role`, {
         roleName: this.getResourceName(`${funcName}-role`),
         assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+        inlinePolicies: {
+          [`${id}RoleAdditionalPolicy`]: new iam.PolicyDocument({
+            statements: [
+              new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+                resources: [`arn:aws:logs:${env.region}:${env.account}:*`],
+              }),
+            ],
+          }),
+        },
       });
     }
 
