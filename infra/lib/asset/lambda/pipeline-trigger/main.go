@@ -22,13 +22,23 @@ type PipelineInfo struct {
 }
 
 type CodeCommitDetail struct {
-	RepositoryName string `json:"repositoryName"`
-	CommitID       string `json:"commitId"`
+	Event                      string `json:"event"`
+	RepositoryName             string `json:"repositoryName"`
+	RepositoryId               string `json:"repositoryId"`
+	ReferenceType              string `json:"referenceType"`
+	ReferenceName              string `json:"referenceName"`
+	ReferenceFullName          string `json:"referenceFullName"`
+	CommitID                   string `json:"commitId"`
+	OldCommitId                string `json:"oldCommitId"`
+	BaseCommitId               string `json:"baseCommitId"`
+	SourceCommitId             string `json:"sourceCommitId"`
+	DestinationCommitId        string `json:"destinationCommitId"`
+	MergeOption                string `json:"mergeOption"`
+	ConflictDetailsLevel       string `json:"conflictDetailsLevel"`
+	ConflictResolutionStrategy string `json:"conflictResolutionStrategy"`
 }
 
 func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
-	pipelinePrefix := strings.Split(os.Getenv("AWS_LAMBDA_FUNCTION_NAME"), "pipeline-handler")[0]
-
 	pipelinesJSON := os.Getenv("PIPELINES")
 	if pipelinesJSON == "" {
 		log.Fatalf("PIPELINES environment variable is not set")
@@ -54,7 +64,10 @@ func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
 	ccClient := codecommit.NewFromConfig(cfg)
 	cpClient := codepipeline.NewFromConfig(cfg)
 
+	pipelinePrefix := strings.Split(os.Getenv("AWS_LAMBDA_FUNCTION_NAME"), "pipeline-handler")[0]
+
 	for _, pipeline := range pipelines {
+
 		changes, err := ccClient.GetDifferences(ctx, &codecommit.GetDifferencesInput{
 			RepositoryName:       aws.String(detail.RepositoryName),
 			AfterCommitSpecifier: aws.String(detail.CommitID),
@@ -66,14 +79,15 @@ func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
 			continue
 		}
 
+		pipelineName := pipelinePrefix + pipeline.Name + "-pipeline"
 		if len(changes.Differences) > 0 {
 			_, err := cpClient.StartPipelineExecution(ctx, &codepipeline.StartPipelineExecutionInput{
-				Name: aws.String(pipelinePrefix + pipeline.Name + "-pipeline"),
+				Name: aws.String(pipelineName),
 			})
 			if err != nil {
-				log.Printf("Error starting pipeline %s: %v", pipeline.Name, err)
+				log.Printf("Error starting pipeline %s: %v", pipelineName, err)
 			}
-			log.Printf("Started pipeline: %s", pipeline.Name)
+			log.Printf("Started pipeline: %s", pipelineName)
 		}
 	}
 }

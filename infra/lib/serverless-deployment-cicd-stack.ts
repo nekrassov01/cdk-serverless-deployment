@@ -114,8 +114,8 @@ export class CicdStack extends Stack {
             "bash",
             "-c",
             [
-              "export GOCACHE=/tmp/go-cache",
               "export GOPATH=/tmp/go-path",
+              "export GOCACHE=/tmp/go-cache",
               "GOOS=linux go build -o /asset-output/main main.go",
             ].join(" && "),
           ],
