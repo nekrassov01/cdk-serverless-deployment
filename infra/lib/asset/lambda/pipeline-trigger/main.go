@@ -38,7 +38,7 @@ type CodeCommitDetail struct {
 	ConflictResolutionStrategy string `json:"conflictResolutionStrategy"`
 }
 
-func getChangedFiles(ctx context.Context, cfg *aws.Config, repositoryName string, oldCommitId string, commitId string) ([]string, error) {
+func getUpdatedFiles(ctx context.Context, cfg *aws.Config, repositoryName string, oldCommitId string, commitId string) ([]string, error) {
 	client := codecommit.NewFromConfig(*cfg)
 
 	resp, err := client.GetDifferences(ctx, &codecommit.GetDifferencesInput{
@@ -71,13 +71,13 @@ func startPipeline(ctx context.Context, cfg *aws.Config, pipelineName string) {
 }
 
 func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
-	pipelinesJSON := os.Getenv("PIPELINES")
-	if pipelinesJSON == "" {
+	pipelineMap := os.Getenv("PIPELINES")
+	if pipelineMap == "" {
 		log.Fatalf("Error environment variable PIPELINES not set")
 	}
 
 	var pipelines []PipelineInfo
-	err := json.Unmarshal([]byte(pipelinesJSON), &pipelines)
+	err := json.Unmarshal([]byte(pipelineMap), &pipelines)
 	if err != nil {
 		log.Fatalf("Error unmarshalling PIPELINES environment variable: %v", err)
 	}
@@ -93,17 +93,16 @@ func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
 		log.Fatalf("Error loading SDK configuration: %v", err)
 	}
 
-	files, err := getChangedFiles(context.TODO(), &cfg, detail.RepositoryName, detail.OldCommitId, detail.CommitId)
+	paths, err := getUpdatedFiles(context.TODO(), &cfg, detail.RepositoryName, detail.OldCommitId, detail.CommitId)
 	if err != nil {
 		log.Fatalf("Error getting changed files: %v", err)
 	}
 
-	pipelinePrefix := strings.Split(os.Getenv("AWS_LAMBDA_FUNCTION_NAME"), "pipeline-handler")[0]
-
+	prefix := strings.Split(os.Getenv("AWS_LAMBDA_FUNCTION_NAME"), "pipeline-handler")[0]
 	for _, pipeline := range pipelines {
-		for _, file := range files {
-			pipelineName := pipelinePrefix + pipeline.Name + "-pipeline"
-			if strings.HasPrefix(file, pipeline.Path) {
+		for _, path := range paths {
+			pipelineName := prefix + pipeline.Name + "-pipeline"
+			if strings.HasPrefix(path, pipeline.Path) {
 				startPipeline(context.TODO(), &cfg, pipelineName)
 			}
 		}

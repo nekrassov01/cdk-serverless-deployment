@@ -1,13 +1,11 @@
 exports.handler = async (event, context) => {
-  const responseBody = {
-    lambdaVersion: process.env.AWS_LAMBDA_FUNCTION_VERSION,
-    apiVersion: "v1",
-    resource: "items/item2",
-  };
-
   return {
     statusCode: 200,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(responseBody),
+    body: JSON.stringify({
+      lambdaVersion: process.env.AWS_LAMBDA_FUNCTION_VERSION,
+      apiVersion: "v1",
+      resource: "items/item2",
+    }),
   };
 };
