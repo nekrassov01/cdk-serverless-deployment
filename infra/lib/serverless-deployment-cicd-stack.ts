@@ -9,7 +9,6 @@ import {
   aws_events_targets as events_targets,
   aws_iam as iam,
   aws_lambda as lambda,
-  aws_lambda_nodejs as lambda_nodejs,
   aws_logs as logs,
   aws_s3 as s3,
   aws_sns as sns,
@@ -76,11 +75,6 @@ export class CicdStack extends Stack {
         ["PipelineHandlerRoleAdditionalPolicy"]: new iam.PolicyDocument({
           statements: [
             new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter"],
-              resources: [`arn:aws:ssm:${this.region}:${this.account}:*`],
-            }),
-            new iam.PolicyStatement({
               resources: [`arn:aws:codepipeline:${this.region}:${this.account}:*`],
               actions: [
                 "codepipeline:GetPipeline",
@@ -94,18 +88,41 @@ export class CicdStack extends Stack {
       },
     });
 
+    //const pipelineHandler = new lambda_nodejs.NodejsFunction(this, "PipelineHandler", {
+    //  functionName: common.getResourceName("pipeline-handler"),
+    //  runtime: lambda.Runtime.GO_1_X,
+    //  entry: "lib/asset/lambda/pipeline-trigger/index.ts",
+    //  handler: "handler",
+    //  deadLetterQueueEnabled: true,
+    //  reservedConcurrentExecutions: 1,
+    //  environment: {
+    //    PIPELINE_MAP: JSON.stringify(common.pipelines),
+    //  },
+    //  role: pipelineHandlerRole,
+    //});
+
     // Create pipeline trigger function
-    const pipelineHandler = new lambda_nodejs.NodejsFunction(this, "PipelineHandler", {
-      functionName: common.getResourceName("pipeline-handler"),
-      runtime: lambda.Runtime.NODEJS_18_X,
-      entry: "lib/asset/lambda/pipeline-trigger/index.ts",
-      handler: "handler",
-      deadLetterQueueEnabled: true,
-      reservedConcurrentExecutions: 1,
-      environment: {
-        PIPELINE_MAP: JSON.stringify(common.pipelines),
-      },
+    const pipelineHandler = common.createLambdaFunction(this, "PipelineHandler", {
+      functionName: "pipeline-handler",
+      description: "Receives codecommit code change events and starts pipelines for specific directories.",
+      runtime: lambda.Runtime.GO_1_X,
+      handler: "main",
+      code: lambda.Code.fromAsset("lib/asset/lambda/pipeline-trigger", {
+        bundling: {
+          image: lambda.Runtime.GO_1_X.bundlingImage,
+          command: [
+            "bash",
+            "-c",
+            [
+              "export GOCACHE=/tmp/go-cache",
+              "export GOPATH=/tmp/go-path",
+              "GOOS=linux go build -o /asset-output/main main.go",
+            ].join(" && "),
+          ],
+        },
+      }),
       role: pipelineHandlerRole,
+      parameterStore: false,
     });
     codeCommitRepository.grantRead(pipelineHandler);
 

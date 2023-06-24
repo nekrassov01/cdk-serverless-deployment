@@ -5,6 +5,7 @@ import {
   aws_lambda as lambda,
   aws_logs as logs,
   aws_s3 as s3,
+  aws_ssm as ssm,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { Common } from "./common";
@@ -28,27 +29,35 @@ export class ApiStack extends Stack {
     );
 
     // Create function
-    const item1FunctionAlias = common.createNodeJsFunction(this, "Item1Function", {
+    const item1FunctionAlias = common.createLambdaFunction(this, "Item1Function", {
       functionName: "item1",
       description: "item1",
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "index.handler",
       code: lambda.Code.fromBucket(functionBucket, `backend/item1/${lambdaConfig.package}`),
       parameterStore: false,
     });
-    const item2FunctionAlias = common.createNodeJsFunction(this, "Item2Function", {
+    const item2FunctionAlias = common.createLambdaFunction(this, "Item2Function", {
       functionName: "item2",
       description: "item2",
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "index.handler",
       code: lambda.Code.fromBucket(functionBucket, `backend/item2/${lambdaConfig.package}`),
       parameterStore: false,
     });
-    const item1FunctionV2Alias = common.createNodeJsFunction(this, "Item1FunctionV2", {
+    const item1FunctionV2Alias = common.createLambdaFunction(this, "Item1FunctionV2", {
       functionName: "item1-v2",
       description: "item1-v2",
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "index.handler",
       code: lambda.Code.fromBucket(functionBucket, `backend-v2/item1/${lambdaConfig.package}`),
       parameterStore: false,
     });
-    const item2FunctionV2Alias = common.createNodeJsFunction(this, "Item2FunctionV2", {
+    const item2FunctionV2Alias = common.createLambdaFunction(this, "Item2FunctionV2", {
       functionName: "item2-v2",
       description: "item2-v2",
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "index.handler",
       code: lambda.Code.fromBucket(functionBucket, `backend-v2/item2/${lambdaConfig.package}`),
       parameterStore: false,
     });
@@ -166,6 +175,12 @@ export class ApiStack extends Stack {
     const item2V2 = itemsV2.addResource("item2");
     item2V2.addMethod("GET", new apig.LambdaIntegration(item2FunctionV2Alias, defaultIntegrationOptions), {
       methodResponses: [defaultMethodresponse],
+    });
+
+    // Put api id to SSM parameter store
+    new ssm.StringParameter(this, "RestApiParameter", {
+      parameterName: common.getResourceNamePath("apigateway"),
+      stringValue: api.restApiId,
     });
   }
 }

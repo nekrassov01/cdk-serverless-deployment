@@ -208,15 +208,5 @@ export class HostingStack extends Stack {
       parameterName: common.getResourceNamePath("cloudfront/cfcd-staging"),
       stringValue: "dummy",
     });
-
-    //// Put bucketName to SSM parameter store
-    //new ssm.StringParameter(this, "HostingBucketParameter", {
-    //  parameterName: common.getResourceNamePath("s3/hosting-bucket"),
-    //  stringValue: hostingBucket.bucketName,
-    //});
-    //new ssm.StringParameter(this, "CloudFrontLogBucketParameter", {
-    //  parameterName: common.getResourceNamePath("s3/cloudfront-log-bucket"),
-    //  stringValue: cloudfrontLogBucket.bucketName,
-    //});
   }
 }

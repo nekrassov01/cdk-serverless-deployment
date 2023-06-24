@@ -704,15 +704,17 @@ export class Common {
     return bucket;
   }
 
-  public createNodeJsFunction(
+  public createLambdaFunction(
     scope: Construct,
     id: string,
     {
       functionName,
       description,
       code,
-      handler = "index.handler",
+      handler,
+      runtime,
       layers,
+      role,
       timeout = Duration.minutes(5),
       memorySize = 128,
       ephemeralStorageSize = Size.mebibytes(512),
@@ -721,9 +723,11 @@ export class Common {
     }: {
       functionName: string;
       description?: string;
+      runtime: lambda.Runtime;
+      handler: string;
       code: lambda.Code;
-      handler?: string;
       layers?: lambda.ILayerVersion[] | undefined;
+      role?: iam.Role;
       timeout?: Duration;
       memorySize?: number;
       ephemeralStorageSize?: Size;
@@ -733,11 +737,13 @@ export class Common {
   ): lambda.Alias {
     const funcName = Common.convertPascalToKebabCase(functionName);
 
-    // Create role
-    const role = new iam.Role(scope, `${id}Role`, {
-      roleName: this.getResourceName(`${funcName}-role`),
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-    });
+    // Create role if undefined
+    if (!role) {
+      role = new iam.Role(scope, `${id}Role`, {
+        roleName: this.getResourceName(`${funcName}-role`),
+        assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      });
+    }
 
     // Create queue
     const deadLetterQueue = new sqs.Queue(scope, `${id}Queue`, {
@@ -756,7 +762,7 @@ export class Common {
       handler: handler,
       layers: layers,
       architecture: lambda.Architecture.X86_64,
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: runtime,
       memorySize: memorySize,
       ephemeralStorageSize: ephemeralStorageSize,
       timeout: timeout,
