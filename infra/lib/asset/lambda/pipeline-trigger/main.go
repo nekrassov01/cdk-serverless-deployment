@@ -38,7 +38,8 @@ type CodeCommitDetail struct {
 	ConflictResolutionStrategy string `json:"conflictResolutionStrategy"`
 }
 
-func getUpdatedFiles(ctx context.Context, cfg *aws.Config, repositoryName string, oldCommitId string, commitId string) ([]string, error) {
+// Retrieve files that have changed
+func getChangedFiles(ctx context.Context, cfg *aws.Config, repositoryName string, oldCommitId string, commitId string) ([]string, error) {
 	client := codecommit.NewFromConfig(*cfg)
 
 	resp, err := client.GetDifferences(ctx, &codecommit.GetDifferencesInput{
@@ -70,6 +71,24 @@ func startPipeline(ctx context.Context, cfg *aws.Config, pipelineName string) {
 	log.Printf("Success started pipeline: %s, executionId: %s\n", pipelineName, *resp.PipelineExecutionId)
 }
 
+func getUnique(elements []string) []string {
+	seen := make(map[string]struct{})
+	var result []string
+
+	log.Printf("Info target pipelines before duplicate removal: %v", elements)
+
+	for _, element := range elements {
+		if _, ok := seen[element]; !ok {
+			seen[element] = struct{}{}
+			result = append(result, element)
+		}
+	}
+
+	log.Printf("Info target pipelines after duplicate removal: %v", result)
+
+	return result
+}
+
 func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
 	pipelineMap := os.Getenv("PIPELINES")
 	if pipelineMap == "" {
@@ -93,19 +112,24 @@ func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
 		log.Fatalf("Error loading SDK configuration: %v", err)
 	}
 
-	paths, err := getUpdatedFiles(context.TODO(), &cfg, detail.RepositoryName, detail.OldCommitId, detail.CommitId)
+	paths, err := getChangedFiles(context.TODO(), &cfg, detail.RepositoryName, detail.OldCommitId, detail.CommitId)
 	if err != nil {
 		log.Fatalf("Error getting changed files: %v", err)
 	}
 
+	var targetPipelines []string
 	prefix := strings.Split(os.Getenv("AWS_LAMBDA_FUNCTION_NAME"), "pipeline-handler")[0]
-	for _, pipeline := range pipelines {
-		for _, path := range paths {
+	for _, path := range paths {
+		for _, pipeline := range pipelines {
 			pipelineName := prefix + pipeline.Name + "-pipeline"
 			if strings.HasPrefix(path, pipeline.Path) {
-				startPipeline(context.TODO(), &cfg, pipelineName)
+				targetPipelines = append(targetPipelines, pipelineName)
 			}
 		}
+	}
+
+	for _, pipeline := range getUnique(targetPipelines) {
+		startPipeline(context.TODO(), &cfg, pipeline)
 	}
 }
 
