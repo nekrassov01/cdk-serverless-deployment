@@ -5,7 +5,7 @@ exports.handler = async (event, context) => {
     body: JSON.stringify({
       lambdaVersion: process.env.AWS_LAMBDA_FUNCTION_VERSION,
       apiVersion: "v2",
-      resource: "items/item2",
+      resource: "items/item2-test",
     }),
   };
 };

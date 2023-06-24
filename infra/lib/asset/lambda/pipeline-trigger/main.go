@@ -119,9 +119,9 @@ func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
 
 	var targetPipelines []string
 	prefix := strings.Split(os.Getenv("AWS_LAMBDA_FUNCTION_NAME"), "pipeline-handler")[0]
-	for _, path := range paths {
-		for _, pipeline := range pipelines {
-			pipelineName := prefix + pipeline.Name + "-pipeline"
+	for _, pipeline := range pipelines {
+		pipelineName := prefix + pipeline.Name + "-pipeline"
+		for _, path := range paths {
 			if strings.HasPrefix(path, pipeline.Path) {
 				targetPipelines = append(targetPipelines, pipelineName)
 			}
