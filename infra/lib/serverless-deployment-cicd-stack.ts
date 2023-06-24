@@ -102,7 +102,7 @@ export class CicdStack extends Stack {
     //});
 
     // Create pipeline trigger function
-    const pipelineHandler = common.createLambdaFunction(this, "PipelineHandler", {
+    const pipelineHandlerAlias = common.createLambdaFunction(this, "PipelineHandler", {
       functionName: "pipeline-handler",
       description: "Receives codecommit code change events and starts pipelines for specific directories.",
       runtime: lambda.Runtime.GO_1_X,
@@ -122,9 +122,12 @@ export class CicdStack extends Stack {
         },
       }),
       role: pipelineHandlerRole,
+      environment: {
+        PIPELINES: JSON.stringify(common.pipelines),
+      },
       parameterStore: false,
     });
-    codeCommitRepository.grantRead(pipelineHandler);
+    codeCommitRepository.grantRead(pipelineHandlerAlias);
 
     // Create event rule for repository state change
     const pipelineHandlerEventRule = new events.Rule(this, "PipelineHandlerEventRule", {
@@ -141,7 +144,7 @@ export class CicdStack extends Stack {
         },
       },
     });
-    pipelineHandlerEventRule.addTarget(new events_targets.LambdaFunction(pipelineHandler));
+    pipelineHandlerEventRule.addTarget(new events_targets.LambdaFunction(pipelineHandlerAlias));
 
     /**
      * Frontend pipeline
