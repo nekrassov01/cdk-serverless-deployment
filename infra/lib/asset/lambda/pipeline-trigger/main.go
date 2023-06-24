@@ -38,7 +38,7 @@ type CodeCommitDetail struct {
 	ConflictResolutionStrategy string `json:"conflictResolutionStrategy"`
 }
 
-func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
+func HandleRequest(ctx context.Context, event events.CloudWatchEvent) {
 	pipelinesJSON := os.Getenv("PIPELINES")
 	if pipelinesJSON == "" {
 		log.Fatalf("PIPELINES environment variable is not set")
@@ -93,5 +93,5 @@ func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
 }
 
 func main() {
-	lambda.Start(handleRequest)
+	lambda.Start(HandleRequest)
 }
