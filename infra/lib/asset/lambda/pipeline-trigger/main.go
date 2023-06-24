@@ -69,10 +69,9 @@ func HandleRequest(ctx context.Context, event events.CloudWatchEvent) {
 	for _, pipeline := range pipelines {
 
 		changes, err := ccClient.GetDifferences(ctx, &codecommit.GetDifferencesInput{
-			RepositoryName:       aws.String(detail.RepositoryName),
-			AfterCommitSpecifier: aws.String(detail.CommitID),
-			BeforePath:           aws.String(pipeline.Path),
-			AfterPath:            aws.String(pipeline.Path),
+			RepositoryName:        aws.String(detail.RepositoryName),
+			BeforeCommitSpecifier: aws.String(detail.OldCommitId),
+			AfterCommitSpecifier:  aws.String(detail.CommitID),
 		})
 		if err != nil {
 			log.Printf("Error getting differences: %v", err)
