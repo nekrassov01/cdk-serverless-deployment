@@ -58,8 +58,12 @@ func getChangedFiles(ctx context.Context, cfg *aws.Config, repositoryName string
 
 	// Extract file paths from the differences
 	var paths []string
-	for _, diff := range resp.Differences {
-		paths = append(paths, *diff.AfterBlob.Path)
+	if len(resp.Differences) > 0 {
+		for _, diff := range resp.Differences {
+			if diff.AfterBlob != nil && diff.AfterBlob.Path != nil {
+				paths = append(paths, *diff.AfterBlob.Path)
+			}
+		}
 	}
 
 	return paths, nil
@@ -131,8 +135,9 @@ func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
 		if err != nil {
 			log.Fatalf("Error starting pipeline %s: %v\n", pipelineName, err)
 		}
-		log.Printf("Pipeline started complete successfully: %s, executionId: %s\n", pipelineName, *resp.PipelineExecutionId)
+		log.Printf("Pipeline started: %s, executionId: %s\n", pipelineName, *resp.PipelineExecutionId)
 	}
+	log.Printf("All pipelines started complete successfully")
 }
 
 // Entrypoint of the Lambda function
