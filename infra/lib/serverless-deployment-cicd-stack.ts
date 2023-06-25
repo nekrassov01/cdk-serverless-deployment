@@ -93,19 +93,6 @@ export class CicdStack extends Stack {
       },
     });
 
-    //const pipelineHandler = new lambda_nodejs.NodejsFunction(this, "PipelineHandler", {
-    //  functionName: common.getResourceName("pipeline-handler"),
-    //  runtime: lambda.Runtime.GO_1_X,
-    //  entry: "lib/asset/lambda/pipeline-trigger/index.ts",
-    //  handler: "handler",
-    //  deadLetterQueueEnabled: true,
-    //  reservedConcurrentExecutions: 1,
-    //  environment: {
-    //    PIPELINE_MAP: JSON.stringify(common.pipelines),
-    //  },
-    //  role: pipelineHandlerRole,
-    //});
-
     // Create pipeline trigger function
     const pipelineHandlerAlias = common.createLambdaFunction(this, "PipelineHandler", {
       functionName: "pipeline-handler",

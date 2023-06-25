@@ -4,8 +4,8 @@ exports.handler = async (event, context) => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       lambdaVersion: process.env.AWS_LAMBDA_FUNCTION_VERSION,
-      apiVersion: "v2",
-      resource: "items/item2-test",
+      apiEndpoint: `https://${event.headers.Host}${event.path}`,
+      httpMethod: event.httpMethod,
     }),
   };
 };
