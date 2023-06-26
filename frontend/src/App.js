@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
+import json from "react-syntax-highlighter/dist/esm/languages/hljs/json";
+import { github } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import "./App.css";
 import config from "./config.json";
+
+SyntaxHighlighter.registerLanguage("json", json);
 
 function App() {
   const [data, setData] = useState(null);
@@ -18,9 +23,11 @@ function App() {
   return (
     <div className="dark-container">
       {error && <div>Error: {error}</div>}
-      <pre className="dark-code-block">
-        <code>{JSON.stringify(data, null, 2)}</code>
-      </pre>
+      {data && (
+        <SyntaxHighlighter language="json" style={github}>
+          {JSON.stringify(data, null, 2)}
+        </SyntaxHighlighter>
+      )}
     </div>
   );
 }

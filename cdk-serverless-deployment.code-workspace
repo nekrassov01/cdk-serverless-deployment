@@ -1,0 +1,43 @@
+{
+  "folders": [
+    {
+      "name": "root",
+      "path": "."
+    },
+    {
+      "name": "infra",
+      "path": "infra"
+    },
+    {
+      "name": "backend/item1",
+      "path": "backend/item1"
+    },
+    {
+      "name": "backend/item2",
+      "path": "backend/item2"
+    },
+    {
+      "name": "backend-v2/item1",
+      "path": "backend-v2/item1"
+    },
+    {
+      "name": "backend-v2/item2",
+      "path": "backend-v2/item2"
+    },
+    {
+      "name": "frontend",
+      "path": "frontend"
+    }
+  ],
+  "settings": {
+    "jest.disabledWorkspaceFolders": [
+      "root",
+      "infra",
+      "backend/item1",
+      "backend/item2",
+      "backend-v2/item1",
+      "backend-v2/item2"
+    ],
+    "workbench.settings.openDefaultSettings": true
+  }
+}

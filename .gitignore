@@ -4,10 +4,9 @@ backup
 unused
 !bin
 !lib
-*.json
-!package.json
-!tsconfig.json
-!*.EXAMPLE.json
-!frontend/src/**/config.json
+package-lock.json
+cdk.json
+cdk.context.json
+stack-map.json
 !scripts
 !scripts/build
