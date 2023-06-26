@@ -23,7 +23,6 @@
     { "language": "typescriptreact", "autoFix": true }
   ],
   "jest.autoRun": "off",
-  "jest.jestCommandLine": "npm run test --",
   "jest.shell": {
     "path": "/usr/bin/env",
     "args": ["bash", "--login"]
