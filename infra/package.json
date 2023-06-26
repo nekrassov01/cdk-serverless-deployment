@@ -18,7 +18,7 @@
     "@aws-sdk/client-sts": "^3.354.0",
     "@types/aws-lambda": "^8.10.119",
     "@types/jest": "^29.4.0",
-    "@types/node": "18.14.6",
+    "@types/node": "^18.16.18",
     "@typescript-eslint/eslint-plugin": "^5.59.11",
     "@typescript-eslint/parser": "^5.59.11",
     "aws-cdk": "^2.85.0",

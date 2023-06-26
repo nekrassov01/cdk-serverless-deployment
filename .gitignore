@@ -2,11 +2,6 @@
 old
 backup
 unused
-!bin
-!lib
+
+node_modules
 package-lock.json
-cdk.json
-cdk.context.json
-stack-map.json
-!scripts
-!scripts/build

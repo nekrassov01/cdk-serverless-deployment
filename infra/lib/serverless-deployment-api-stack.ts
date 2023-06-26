@@ -8,24 +8,24 @@ import {
   aws_ssm as ssm,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { Common } from "./common";
+import { Common, IResourceConfig } from "./common";
 
-const common = new Common();
-const env = common.getEnvironment();
-const domainName = common.getDomain();
-const lambdaConfig = common.defaultConfig.lambda;
-const apigatewayConfig = common.defaultConfig.apigateway;
-const codebuildConfig = common.defaultConfig.codebuild;
+export interface ApiStackProps extends StackProps {
+  resourceConfig: IResourceConfig;
+}
 
 export class ApiStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
+
+    const { resourceConfig } = props;
+    const common = new Common();
 
     // Get function bucket from bucket name
     const functionBucket = s3.Bucket.fromBucketName(
       this,
       "FunctionBucket",
-      common.getResourceName(lambdaConfig.bucket)
+      common.getResourceName(resourceConfig.lambda.bucket)
     );
 
     // Create function
@@ -34,7 +34,7 @@ export class ApiStack extends Stack {
       description: "item1",
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: "index.handler",
-      code: lambda.Code.fromBucket(functionBucket, `backend/item1/${lambdaConfig.package}`),
+      code: lambda.Code.fromBucket(functionBucket, `backend/item1/${resourceConfig.lambda.package}`),
       parameterStore: false,
     });
     const item2FunctionAlias = common.createLambdaFunction(this, "Item2Function", {
@@ -42,7 +42,7 @@ export class ApiStack extends Stack {
       description: "item2",
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: "index.handler",
-      code: lambda.Code.fromBucket(functionBucket, `backend/item2/${lambdaConfig.package}`),
+      code: lambda.Code.fromBucket(functionBucket, `backend/item2/${resourceConfig.lambda.package}`),
       parameterStore: false,
     });
     const item1FunctionV2Alias = common.createLambdaFunction(this, "Item1FunctionV2", {
@@ -50,7 +50,7 @@ export class ApiStack extends Stack {
       description: "item1-v2",
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: "index.handler",
-      code: lambda.Code.fromBucket(functionBucket, `backend-v2/item1/${lambdaConfig.package}`),
+      code: lambda.Code.fromBucket(functionBucket, `backend-v2/item1/${resourceConfig.lambda.package}`),
       parameterStore: false,
     });
     const item2FunctionV2Alias = common.createLambdaFunction(this, "Item2FunctionV2", {
@@ -58,7 +58,7 @@ export class ApiStack extends Stack {
       description: "item2-v2",
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: "index.handler",
-      code: lambda.Code.fromBucket(functionBucket, `backend-v2/item2/${lambdaConfig.package}`),
+      code: lambda.Code.fromBucket(functionBucket, `backend-v2/item2/${resourceConfig.lambda.package}`),
       parameterStore: false,
     });
 
@@ -68,7 +68,7 @@ export class ApiStack extends Stack {
 
     // Create log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, "ApiLogGroup", {
-      logGroupName: common.getResourceNamePath(`apigateway/${apigatewayConfig.stage}`),
+      logGroupName: common.getResourceNamePath(`apigateway/${resourceConfig.apigateway.stage}`),
       removalPolicy: common.getRemovalPolicy(),
       retention: common.getLogsRetentionDays(),
     });
@@ -80,7 +80,7 @@ export class ApiStack extends Stack {
       deploy: true,
       retainDeployments: true,
       deployOptions: {
-        stageName: apigatewayConfig.stage,
+        stageName: resourceConfig.apigateway.stage,
         description: `Rest API default stage for ${common.service}`,
         documentationVersion: undefined,
         accessLogDestination: new apig.LogGroupLogDestination(apiLogGroup),

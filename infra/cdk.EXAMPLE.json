@@ -48,7 +48,7 @@
     "environment": "dev",
     "repository": "test-repo",
     "branch": "feature",
-    "defaultConfig": {
+    "resourceConfig": {
       "apigateway": {
         "stage": "default"
       },

@@ -12,18 +12,20 @@ import {
   aws_ssm as ssm,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { Common } from "./common";
+import { Common, IEnvironmentConfig, IResourceConfig } from "./common";
 
-const common = new Common();
-const env = common.getEnvironment();
-const domainName = common.getDomain();
-const lambdaConfig = common.defaultConfig.lambda;
-const apigatewayConfig = common.defaultConfig.apigateway;
-const codebuildConfig = common.defaultConfig.codebuild;
+export interface CommonStackProps extends StackProps {
+  environmentConfig: IEnvironmentConfig;
+  resourceConfig: IResourceConfig;
+  domainName: string;
+}
 
 export class HostingStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props: CommonStackProps) {
     super(scope, id, props);
+
+    const { environmentConfig, resourceConfig, domainName } = props;
+    const common = new Common();
 
     /**
      * Get parameters
@@ -52,7 +54,7 @@ export class HostingStack extends Stack {
     hostingBucket.addCorsRule({
       allowedHeaders: ["*"],
       allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.HEAD],
-      allowedOrigins: [`https://${domainName}`, `https://*.${domainName}`], // Add here if you need access from an external domain
+      allowedOrigins: [`https://${domainName}`, `https://*.${domainName}`], // Add here if you need access from external domains
       exposedHeaders: [],
       maxAge: 3000,
     });
@@ -97,7 +99,7 @@ export class HostingStack extends Stack {
       logBucket: cloudfrontLogBucket,
       logFilePrefix: distributionName,
       logIncludesCookies: true,
-      webAclId: env.webAcl,
+      webAclId: environmentConfig.webAcl,
       defaultBehavior: {
         origin: new cloudfront_origins.S3Origin(hostingBucket, {
           originPath: `/${frontendVersion}`,
@@ -116,7 +118,7 @@ export class HostingStack extends Stack {
         smoothStreaming: false,
       },
       additionalBehaviors: {
-        [`/${apigatewayConfig.stage}/*`]: {
+        [`/${resourceConfig.apigateway.stage}/*`]: {
           origin: new cloudfront_origins.HttpOrigin(`${apiId}.execute-api.${this.region}.${this.urlSuffix}`, {
             originPath: undefined,
             connectionAttempts: 3,
@@ -173,17 +175,6 @@ export class HostingStack extends Stack {
 
     // Add bucket policy to hosting bucket
     hostingBucket.addToResourcePolicy(hostingBucketPolicyStatement);
-
-    //// Deploy default items for website hosting bucket
-    //new s3deploy.BucketDeployment(this, "HostingBucketDeployment", {
-    //  sources: [s3deploy.Source.asset("src/s3/hosting-bucket/react-deployment-sample/build")],
-    //  destinationBucket: hostingBucket,
-    //  destinationKeyPrefix: frontendVersion,
-    //  distribution: distribution,
-    //  distributionPaths: ["/*"],
-    //  prune: true,
-    //  logRetention: logs.RetentionDays.THREE_DAYS,
-    //});
 
     // Alias record for CloudFront
     const distributionARecord = new route53.ARecord(this, "DistributionARecord", {

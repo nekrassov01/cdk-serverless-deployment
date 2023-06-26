@@ -8,6 +8,7 @@ import {
   RemovalPolicy,
   Size,
   Tags,
+  aws_applicationautoscaling as aas,
   aws_codepipeline_actions as actions,
   aws_ec2 as ec2,
   aws_ecr as ecr,
@@ -23,22 +24,161 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 
 const app = new App();
 
-// Environment name definition
-const envs = {
+const environmentName = {
   Development: "dev",
   Staging: "stg",
   Production: "prod",
 } as const;
 
+export const pipelineType = {
+  Backend: "backend",
+  Frontend: "frontend",
+} as const;
+
 // Environment name type
-type EnvironmentName = (typeof envs)[keyof typeof envs];
+type EnvironmentName = (typeof environmentName)[keyof typeof environmentName];
 
-// Valid Environment name list
-const validEnvNames = Object.values(envs);
+// Pipeline type for filter
+type PipelineType = (typeof pipelineType)[keyof typeof pipelineType];
 
-// Interface for handling parameters
-interface ICommonParameter {
-  [key: string]: any;
+// Resource config from context.resourceConfig
+export interface IResourceConfig {
+  apigateway: {
+    stage: string;
+  };
+  lambda: {
+    bucket: string;
+    alias: string;
+    package: string;
+  };
+  codebuild: {
+    localDir: string;
+  };
+}
+
+// Environment config from context.environments
+export interface IEnvironmentConfig {
+  name: string;
+  account: string;
+  region: string;
+  hostedZone: string;
+  webAcl: string;
+}
+
+// Environment config from context.containers
+export interface IContainerConfig {
+  name: string;
+  environment: EnvironmentName;
+  repository: string;
+  imagePath: string;
+  version: string[];
+  tag: string;
+}
+
+// Pipeline config from context.pipelines
+export interface IPipelineConfig {
+  name: string;
+  path: string;
+  type: PipelineType;
+}
+
+// S3 parameters
+interface IS3Parameter {
+  removalPolicy: RemovalPolicy;
+  autoDeleteObjects: boolean;
+  durationDays: Duration;
+}
+
+// VPC parameters
+interface IVpcParameter {
+  ipAddresses: ec2.IpAddresses;
+  natGateways: number;
+  maxAzs: number;
+  subnetCidrMask: number;
+}
+
+// RDS parameters
+interface IRdsParameter {
+  deletionProtection: boolean;
+  backup: {
+    retentionDays: Duration;
+  };
+  monitoringInterval: Duration;
+  scaling: {
+    minCapacity: number | undefined;
+    maxCapacity: number | undefined;
+  };
+  performanceInsightRetention: Duration;
+  secretRetentionDays: Duration;
+}
+
+// ECS parameters
+interface IEcsParameter {
+  taskDefinition:
+    | {
+        cpu: number;
+        memoryLimitMiB: number;
+        command: string[];
+      }
+    | undefined;
+  service:
+    | {
+        nodeCount: number;
+        healthCheckGracePeriod: Duration;
+        circuitBreaker: { rollback: boolean } | undefined;
+        scaling:
+          | {
+              base:
+                | {
+                    minCapacity: number;
+                    maxCapacity: number;
+                    cpuUtilization: number;
+                    scaleOutCoolDown: Duration;
+                    scaleInCoolDown: Duration;
+                  }
+                | undefined;
+              schedule:
+                | {
+                    beforeOpening: {
+                      minCapacity: number;
+                      maxCapacity: number;
+                      cron: aas.CronOptions;
+                    };
+                    afterOpening: {
+                      minCapacity: number;
+                      maxCapacity: number;
+                      cron: aas.CronOptions;
+                    };
+                    beforeClosing: {
+                      minCapacity: number;
+                      maxCapacity: number;
+                      cron: aas.CronOptions;
+                    };
+                    afterClosing: {
+                      minCapacity: number;
+                      maxCapacity: number;
+                      cron: aas.CronOptions;
+                    };
+                  }
+                | undefined;
+            }
+          | undefined;
+      }
+    | undefined;
+  alb:
+    | {
+        healthyThresholdCount: number;
+        interval: Duration;
+        timeout: Duration;
+        slowStart: Duration;
+        stickinessCookieDuration: Duration;
+      }
+    | undefined;
+  bastion:
+    | {
+        instanceType: string;
+      }
+    | undefined;
 }
 
 /**
@@ -52,151 +192,124 @@ export class Common {
   public readonly environment = app.node.tryGetContext("environment");
   public readonly repository = app.node.tryGetContext("repository");
   public readonly branch = app.node.tryGetContext("branch");
-  public readonly defaultConfig = app.node.tryGetContext("defaultConfig");
+  public readonly resourceConfig = app.node.tryGetContext("resourceConfig");
   public readonly environments = app.node.tryGetContext("environments");
   public readonly pipelines = app.node.tryGetContext("pipelines");
   public readonly containers = app.node.tryGetContext("containers");
+  public readonly validEnvironmentNames = Object.values(environmentName);
 
   // Validate environment settings and return bool
-  private isValidEnvironment(): boolean {
-    try {
-      const targetEnv = this.environment;
-      const envNames = this.environments.map((obj: ICommonParameter) => obj.name);
-      const envNameUniqueLength = Array.from(new Set(envNames)).length;
+  private isValidEnvironmentConfig(): boolean {
+    const targetEnv = this.environment;
+    const envNames = this.environments.map((env: IEnvironmentConfig) => env.name);
+    const envNameUniqueLength = Array.from(new Set(envNames)).length;
 
-      // Is the environment name defined in `environment` valid
-      if (!validEnvNames.includes(targetEnv)) {
-        return false;
-      }
-
-      // Is each environment name defined in `environments` valid
-      envNames.forEach((value: EnvironmentName): boolean | void => {
-        if (!validEnvNames.includes(value)) {
-          return false;
-        }
-      });
-
-      // Are there any duplicate environment names in `environments`
-      if (envNames.length !== envNameUniqueLength) {
-        return false;
-      }
-
-      // Are there any duplicate environment accounts in `environments`
-      if (
-        envNameUniqueLength !==
-        Array.from(new Set(this.environments.map((obj: ICommonParameter) => obj.account))).length
-      ) {
-        return false;
-      }
-
-      // Whether the environment name defined in `environment` is in `environments`
-      if (
-        envNames.filter((value: EnvironmentName) => {
-          return value === targetEnv;
-        }).length !== 1
-      ) {
-        return false;
-      }
-
-      return true;
-    } catch (e) {
-      throw e;
+    // Is the environment name defined in `environment` valid
+    if (!this.validEnvironmentNames.includes(targetEnv)) {
+      return false;
     }
+
+    // Is each environment name defined in `environments` valid
+    envNames.forEach((value: EnvironmentName): boolean | void => {
+      if (!this.validEnvironmentNames.includes(value)) {
+        return false;
+      }
+    });
+
+    // Are there any duplicate environment names in `environments`
+    if (envNames.length !== envNameUniqueLength) {
+      return false;
+    }
+
+    // Are there any duplicate environment accounts in `environments`
+    if (
+      envNameUniqueLength !==
+      Array.from(new Set(this.environments.map((env: IEnvironmentConfig) => env.account))).length
+    ) {
+      return false;
+    }
+
+    // Whether the environment name defined in `environment` is in `environments`
+    if (
+      envNames.filter((value: EnvironmentName) => {
+        return value === targetEnv;
+      }).length !== 1
+    ) {
+      return false;
+    }
+
+    return true;
   }
 
   // Verify environment settings
-  public verifyEnvironment(): void {
-    if (!this.isValidEnvironment()) {
+  public verifyEnvironmentConfig(): void {
+    if (!this.isValidEnvironmentConfig()) {
       throw new Error(this.getConsoleMessage("Environment setting in 'cdk.json' not valid."));
     }
   }
 
   // Get environment setting
-  public getEnvironment(environmentName?: EnvironmentName): ICommonParameter {
-    try {
-      const envName = environmentName ? environmentName : this.environment;
-      return this.environments.find((obj: ICommonParameter) => {
-        return obj.name === envName;
-      });
-    } catch (e) {
-      throw e;
-    }
+  public getEnvironmentConfig(environmentName?: EnvironmentName): IEnvironmentConfig {
+    const envName = environmentName ? environmentName : this.environment;
+    return this.environments.find((env: IEnvironmentConfig) => {
+      return env.name === envName;
+    });
   }
 
   // Get caller identity for verification
   private async getCallerIdentity(): Promise<GetCallerIdentityCommandOutput> {
-    try {
-      const client = new STSClient({ region: this.getEnvironment().region });
-      return await client.send(new GetCallerIdentityCommand({}));
-    } catch (e) {
-      throw e;
-    }
+    const client = new STSClient({ region: this.getEnvironmentConfig().region });
+    return await client.send(new GetCallerIdentityCommand({}));
   }
 
   // Verify if the caller account matches the account specified as the target of the CDK
   public verifyCallerAccount(): void {
-    try {
-      const targetAccount = this.getEnvironment().account;
-      this.getCallerIdentity().then((obj) => {
-        if (obj.Account !== targetAccount) {
-          throw new Error(
-            this.getConsoleMessage(
-              `The caller account '${obj.Account}' does not match the account '${targetAccount}' specified as the target of the CDK.`
-            )
-          );
-        }
-      });
-    } catch (e) {
-      throw e;
-    }
+    const targetAccount = this.getEnvironmentConfig().account;
+    this.getCallerIdentity().then((obj) => {
+      if (obj.Account !== targetAccount) {
+        throw new Error(
+          this.getConsoleMessage(
+            `The caller account '${obj.Account}' does not match the account '${targetAccount}' specified as the target of the CDK.`
+          )
+        );
+      }
+    });
   }
 
   // Get CodeCommit repository remote branche list
   private async getCodeCommitRemoteBranches(): Promise<ListBranchesCommandOutput> {
-    try {
-      const client = new CodeCommitClient({ region: this.getEnvironment().region });
-      return await client.send(new ListBranchesCommand({ repositoryName: this.repository }));
-    } catch (e) {
-      throw e;
-    }
+    const client = new CodeCommitClient({ region: this.getEnvironmentConfig().region });
+    return await client.send(new ListBranchesCommand({ repositoryName: this.repository }));
   }
 
   // Verify the target branch exists in remote branches of the CodeCommit repository
-  public verifyBranch(): void {
-    try {
-      this.getCodeCommitRemoteBranches().then((obj) => {
-        if (!obj.branches?.includes(this.branch)) {
-          throw new Error(
-            this.getConsoleMessage(
-              `Target branch does not exist in remote branches of the repository '${this.repository}'`
-            )
-          );
-        }
-      });
-    } catch (e) {
-      throw e;
-    }
+  public verifyCodeCommitBranch(): void {
+    this.getCodeCommitRemoteBranches().then((obj) => {
+      if (!obj.branches?.includes(this.branch)) {
+        throw new Error(
+          this.getConsoleMessage(
+            `Target branch does not exist in remote branches of the repository '${this.repository}'`
+          )
+        );
+      }
+    });
   }
 
   // Get container setting
-  public getContainer(imageName: string): ICommonParameter {
-    try {
-      const ret = this.containers.find((obj: ICommonParameter) => {
-        return obj.name === imageName;
-      });
-      if (!ret) {
-        throw new Error(this.getConsoleMessage(`Container image '${imageName}' not found in 'cdk.json'`));
-      }
-      return ret;
-    } catch (e) {
-      throw e;
+  public getContainerConfig(imageName: string): IContainerConfig {
+    const ret = this.containers.find((obj: IContainerConfig) => {
+      return obj.name === imageName;
+    });
+    if (!ret) {
+      throw new Error(this.getConsoleMessage(`Container image '${imageName}' not found in 'cdk.json'`));
     }
+    return ret;
   }
 
   // Get ECR repository
   public getContainerRepository(scope: Construct, imageName: string): ecr.IRepository {
-    const config = this.getContainer(imageName);
-    const repoEnv = this.getEnvironment(config.environment);
+    const config = this.getContainerConfig(imageName);
+    const repoEnv = this.getEnvironmentConfig(config.environment);
     return ecr.Repository.fromRepositoryArn(
       scope,
       "ContainerRepository",
@@ -205,102 +318,87 @@ export class Common {
   }
 
   // Validate container setting and return bool
-  private isValidContainer(containerConfig: ICommonParameter): boolean {
-    try {
-      // Is the environment name valid
-      if (!validEnvNames.includes(containerConfig.environment)) {
-        return false;
-      }
-
-      // Is other parameters present
-      if (
-        !Object.keys(containerConfig.repository).length ||
-        !Object.keys(containerConfig.imagePath).length ||
-        !Object.keys(containerConfig.version).length ||
-        !Object.keys(containerConfig.tag).length
-      ) {
-        return false;
-      }
-
-      return true;
-    } catch (e) {
-      throw e;
+  private isValidContainerConfig(containerConfig: IContainerConfig): boolean {
+    // Is the environment name valid
+    if (!this.validEnvironmentNames.includes(containerConfig.environment)) {
+      return false;
     }
+
+    // Is other parameters present
+    if (
+      !Object.keys(containerConfig.repository).length ||
+      !Object.keys(containerConfig.imagePath).length ||
+      !Object.keys(containerConfig.version).length ||
+      !Object.keys(containerConfig.tag).length
+    ) {
+      return false;
+    }
+
+    return true;
   }
 
   // Get remote ECR repositories
-  private async getRemoteContainerRepositories(env: ICommonParameter): Promise<DescribeRepositoriesCommandOutput> {
-    try {
-      const client = new ECRClient({ region: env.region });
-      return await client.send(new DescribeRepositoriesCommand({ registryId: env.Account }));
-    } catch (e) {
-      throw e;
-    }
+  private async getRemoteContainerRepositories(env: IEnvironmentConfig): Promise<DescribeRepositoriesCommandOutput> {
+    const client = new ECRClient({ region: env.region });
+    return await client.send(new DescribeRepositoriesCommand({ registryId: env.account }));
   }
 
   // Verify remote ECR repository exists
-  private verifyContainerRepository(env: ICommonParameter, containerConfig: ICommonParameter) {
-    try {
-      this.getRemoteContainerRepositories(env).then((obj) => {
-        if (
-          obj.repositories?.find((repo) => {
-            return repo.repositoryName === containerConfig.repository;
-          }) === undefined
-        ) {
-          throw new Error(this.getConsoleMessage(`Container repository '${containerConfig.repository}' not found.`));
-        }
-      });
-    } catch (e) {
-      throw e;
-    }
+  private verifyContainerRepository(env: IEnvironmentConfig, containerConfig: IContainerConfig) {
+    this.getRemoteContainerRepositories(env).then((obj) => {
+      if (
+        obj.repositories?.find((repo) => {
+          return repo.repositoryName === containerConfig.repository;
+        }) === undefined
+      ) {
+        throw new Error(this.getConsoleMessage(`Container repository '${containerConfig.repository}' not found.`));
+      }
+    });
   }
 
   // Verify container setting and ECR repository exists
-  public verifyContainer(): void {
-    try {
-      const containerNames = this.containers.map((obj: ICommonParameter) => obj.name);
-      const containerNameUniqueLength = Array.from(new Set(containerNames)).length;
+  public verifyContainerConfig(): void {
+    const containerNames = this.containers.map((obj: IContainerConfig) => obj.name);
+    const containerNameUniqueLength = Array.from(new Set(containerNames)).length;
 
-      containerNames.map((imageName: string) => {
-        const config = this.getContainer(imageName);
-        const repoEnv = this.getEnvironment(config.environment);
-        const templateFile = `${config.imagePath}/template`;
+    containerNames.map((imageName: string) => {
+      const config = this.getContainerConfig(imageName);
+      const repoEnv = this.getEnvironmentConfig(config.environment);
+      const templateFile = `${config.imagePath}/template`;
 
-        if (!this.isValidContainer(config)) {
-          throw new Error(this.getConsoleMessage(`Container settings '${imageName}' in 'cdk.json' not valid.`));
-        }
-
-        // Does the template file exist
-        if (!existsSync(templateFile)) {
-          throw new Error(this.getConsoleMessage(`Template file not found. Please check '${templateFile}' exists.`));
-        }
-
-        // Check if the ECR repository exists
-        this.verifyContainerRepository(repoEnv, config);
-      });
-
-      // Are there any duplicate container names in `params.containers`
-      if (containerNames.length !== containerNameUniqueLength) {
-        throw new Error(this.getConsoleMessage(`Container name duplicated in 'cdk.json'`));
+      if (!this.isValidContainerConfig(config)) {
+        throw new Error(this.getConsoleMessage(`Container settings '${imageName}' in 'cdk.json' not valid.`));
       }
-    } catch (e) {
-      throw e;
+
+      // Does the template file exist
+      if (!existsSync(templateFile)) {
+        throw new Error(this.getConsoleMessage(`Template file not found. Please check '${templateFile}' exists.`));
+      }
+
+      // Check if the ECR repository exists
+      this.verifyContainerRepository(repoEnv, config);
+    });
+
+    // Are there any duplicate container names in `params.containers`
+    if (containerNames.length !== containerNameUniqueLength) {
+      throw new Error(this.getConsoleMessage(`Container name duplicated in 'cdk.json'`));
     }
   }
 
   // Create Dockerfile with template and 'cdk.json' parameters
   public createDockerfile(imageName: string): void {
-    try {
-      const config = this.getContainer(imageName);
-      const templateFile = `${config.imagePath}/template`;
-      let out = readFileSync(templateFile).toString();
-      config.version.forEach((element: string, index: number) => {
-        out = out.replaceAll(`\$\{VERSION_${index}\}`, element);
-      });
-      writeFileSync(`${config.imagePath}/Dockerfile`, out);
-    } catch (e) {
-      throw e;
-    }
+    const config = this.getContainerConfig(imageName);
+    const content = readFileSync(`${config.imagePath}/template`).toString();
+    const out = content.replace(/\$\{VERSION_(\d+)\}/g, (match, versionIndex) => {
+      const index = Number(versionIndex);
+      return config.version[index] || match;
+    });
+    writeFileSync(`${config.imagePath}/Dockerfile`, out);
+  }
+
+  // Filter context.pipelines by type
+  public getPipelineConfigByType(type: PipelineType): IPipelineConfig[] {
+    return this.pipelines.filter((item: IPipelineConfig) => item.type === type);
   }
 
   // Referenced on <https://sdhuang32.github.io/ssm-StringParameter-valueFromLookup-use-cases-and-internal-synth-flow/>
@@ -333,22 +431,24 @@ export class Common {
 
   // Returns environment as boolean: Production
   public isProduction(): boolean {
-    return this.environment === envs.Production ? true : false;
+    return this.environment === environmentName.Production ? true : false;
   }
 
   // Returns environment as boolean: Staging
   public isStaging(): boolean {
-    return this.environment === envs.Staging ? true : false;
+    return this.environment === environmentName.Staging ? true : false;
   }
 
   // Returns environment as boolean: Development
   public isDevelopment(): boolean {
-    return this.environment === envs.Development ? true : false;
+    return this.environment === environmentName.Development ? true : false;
   }
 
   //  Returns environment as boolean: Production or Staging
   public isProductionOrStaging(): boolean {
-    return this.environment === envs.Production || this.environment === envs.Staging ? true : false;
+    return this.environment === environmentName.Production || this.environment === environmentName.Staging
+      ? true
+      : false;
   }
 
   // Add prefix to resource ID
@@ -380,15 +480,15 @@ export class Common {
 
   // Get hosted zone domain
   public getHostedZone(): string {
-    return this.getEnvironment().hostedZone;
+    return this.getEnvironmentConfig().hostedZone;
   }
 
   // Create a domain name by concatenating strings
   public getDomain(): string {
     const environment = Common.convertPascalToKebabCase(this.environment);
     return this.isProductionOrStaging()
-      ? `${environment}.${this.getEnvironment().hostedZone}`
-      : `${environment}-${Common.convertPascalToKebabCase(this.branch)}.${this.getEnvironment().hostedZone}`;
+      ? `${environment}.${this.getEnvironmentConfig().hostedZone}`
+      : `${environment}-${Common.convertPascalToKebabCase(this.branch)}.${this.getEnvironmentConfig().hostedZone}`;
   }
 
   // Default removal policy
@@ -407,7 +507,7 @@ export class Common {
   }
 
   // Default VPC settings
-  public getVpcParameter(): ICommonParameter {
+  public getVpcParameter(): IVpcParameter {
     return this.isProductionOrStaging()
       ? {
           ipAddresses: ec2.IpAddresses.cidr("10.0.0.0/16"),
@@ -438,7 +538,7 @@ export class Common {
   }
 
   // Default S3 settings
-  public getS3Parameter(): ICommonParameter {
+  public getS3Parameter(): IS3Parameter {
     return this.isProductionOrStaging()
       ? {
           removalPolicy: RemovalPolicy.RETAIN,
@@ -453,7 +553,7 @@ export class Common {
   }
 
   // Default RDS settings (for mysql)
-  public getRdsParameter(): ICommonParameter {
+  public getRdsParameter(): IRdsParameter {
     return this.isProductionOrStaging()
       ? {
           deletionProtection: true,
@@ -484,7 +584,7 @@ export class Common {
   }
 
   // Default ECS settings
-  public getEcsParameter(): ICommonParameter {
+  public getEcsParameter(): IEcsParameter {
     return this.isProductionOrStaging()
       ? {
           taskDefinition: {
@@ -665,7 +765,7 @@ export class Common {
       bucketName: string;
       lifecycle: boolean;
       parameterStore: boolean;
-      objectOwnership: Boolean;
+      objectOwnership: boolean;
     }
   ): s3.Bucket {
     const s3RemovalPolicy = this.getS3Parameter();
@@ -704,6 +804,7 @@ export class Common {
     return bucket;
   }
 
+  // Default lambda function settings
   public createLambdaFunction(
     scope: Construct,
     id: string,
@@ -736,7 +837,7 @@ export class Common {
     }
   ): lambda.Alias {
     const funcName = Common.convertPascalToKebabCase(functionName);
-    const env = this.getEnvironment();
+    const env = this.getEnvironmentConfig();
 
     // Create role if undefined
     if (!role) {
@@ -757,7 +858,7 @@ export class Common {
       });
     }
 
-    // Create queue
+    // Create DLQ
     const deadLetterQueue = new sqs.Queue(scope, `${id}Queue`, {
       queueName: this.getResourceName(`${funcName}-queue`),
       encryption: sqs.QueueEncryption.SQS_MANAGED,
@@ -792,7 +893,7 @@ export class Common {
 
     // Update function alias
     const alias = new lambda.Alias(scope, `${id}Alias"`, {
-      aliasName: this.defaultConfig.lambda.alias,
+      aliasName: this.resourceConfig.lambda.alias,
       version: func.currentVersion,
     });
 
@@ -810,7 +911,7 @@ export class Common {
 
 // Accident prevention
 const common = new Common();
-common.verifyEnvironment();
 common.verifyCallerAccount();
-common.verifyBranch();
-common.verifyContainer();
+common.verifyEnvironmentConfig();
+common.verifyContainerConfig();
+common.verifyCodeCommitBranch();

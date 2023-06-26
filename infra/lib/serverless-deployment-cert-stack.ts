@@ -2,12 +2,16 @@ import { Stack, StackProps, aws_certificatemanager as acm, aws_route53 as route5
 import { Construct } from "constructs";
 import { Common } from "./common";
 
-const common = new Common();
-const domainName = common.getDomain();
+export interface CertStackProps extends StackProps {
+  domainName: string;
+}
 
 export class CertStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props: CertStackProps) {
     super(scope, id, props);
+
+    const { domainName } = props;
+    const common = new Common();
 
     // Create certificate for CloudFront
     const certificate = new acm.DnsValidatedCertificate(this, "Certificate", {
