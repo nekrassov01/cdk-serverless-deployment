@@ -2,11 +2,6 @@
 
 set -euo pipefail
 
-if [ -z "$1" ]; then
-  echo "Required npm prefix!"
-  exit 1
-fi
-
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
 for cmd in aws jq; do
