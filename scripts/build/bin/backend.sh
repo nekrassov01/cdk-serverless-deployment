@@ -30,5 +30,8 @@ new_version=$(update_function_code_and_get_version "$FUNCTION_NAME" "$BUCKET_NAM
 echo "PROCESS: Updating lambda function alias."
 update_function_alias "$FUNCTION_NAME" "$FUNCTION_ALIAS" "$new_version"
 
+echo "PROCESS: Tagging lambda function to commit hash."
+tag_function "$(get_function_arn "$FUNCTION_NAME")" "COMMIT_HASH" "$CODEBUILD_RESOLVED_SOURCE_VERSION"
+
 echo "SUCCESS: Lambda function deploying completed successfully."
 exit 0

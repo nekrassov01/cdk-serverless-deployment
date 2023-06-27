@@ -48,7 +48,7 @@ get_distribution_etag() {
 }
 
 get_distribution_arn() {
-  $ aws cloudfront get-distribution --id "$1" --query 'Distribution.ARN' --output text || {
+  aws cloudfront get-distribution --id "$1" --query 'Distribution.ARN' --output text || {
     echo "ERROR: Failed to get 'ARN' from '$1'."
     exit 1
   }
@@ -150,8 +150,15 @@ tag_distribution() {
   }
 }
 
+get_function_arn() {
+  aws lambda get-function --function-name "serverless-deployment-dev-feature-item1" --query "Configuration.FunctionArn" --output text || {
+    echo "ERROR: Failed to get 'ARN' from '$1'."
+    exit 1
+  }
+}
+
 update_function_code_and_get_version() {
-  aws lambda update-function-code --function-name "$1" --s3-bucket "$2" --s3-key "$3"--tags "COMMIT_HASH=$CODEBUILD_RESOLVED_SOURCE_VERSION" --publish --query "Version" --output text || {
+  aws lambda update-function-code --function-name "$1" --s3-bucket "$2" --s3-key "$3"--publish --query "Version" --output text || {
     echo "ERROR: Failed to update function for $1."
     exit 1
   }
@@ -160,6 +167,13 @@ update_function_code_and_get_version() {
 update_function_alias() {
   aws lambda update-alias --function-name "$1" --name "$2" --function-version "$3" || {
     echo "ERROR: Failed to update function alias for $1."
+    exit 1
+  }
+}
+
+tag_function() {
+  aws function tag-resource --resource "$1" --tags "Items=[{Key=$2,Value=$3}]" || {
+    echo "ERROR: Failed to tag function for $1."
     exit 1
   }
 }

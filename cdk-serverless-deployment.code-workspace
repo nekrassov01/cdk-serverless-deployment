@@ -27,17 +27,14 @@
     {
       "name": "frontend",
       "path": "frontend"
+    },
+    {
+      "name": "scripts",
+      "path": "scripts"
     }
   ],
   "settings": {
-    "jest.disabledWorkspaceFolders": [
-      "root",
-      "infra",
-      "backend/item1",
-      "backend/item2",
-      "backend-v2/item1",
-      "backend-v2/item2"
-    ],
+    "jest.disabledWorkspaceFolders": ["root", "infra", "scripts"],
     "workbench.settings.openDefaultSettings": true
   }
 }
