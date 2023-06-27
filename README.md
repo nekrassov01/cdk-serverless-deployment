@@ -1,4 +1,4 @@
-# cdk-serverless-deeployment
+# cdk-serverless-deployment
 
 ## Overview
 
