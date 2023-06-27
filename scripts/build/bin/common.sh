@@ -145,7 +145,7 @@ wait_distribution_deploy() {
 
 tag_distribution() {
   aws cloudfront tag-resource --resource "$1" --tags "$2=$3" || {
-    echo "ERROR: Failed to tag distribution for $1."
+    echo "ERROR: Failed to tag $2 for $1."
     exit 1
   }
 }
