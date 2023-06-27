@@ -19,7 +19,7 @@ echo "PROCESS: Installing node modules."
 npm install
 
 echo "PROCESS: Packaging lambda function."
-zip -r "$FUNCTION_PACKAGE_NAME" .
+zip -r "$FUNCTION_PACKAGE_NAME" . >/dev/null
 
 echo "PROCESS: Uploading lambda function."
 aws s3 cp "$FUNCTION_PACKAGE_NAME" s3://"$BUCKET_NAME/$BUCKET_PATH"/

@@ -158,7 +158,7 @@ get_function_arn() {
 }
 
 update_function_code_and_get_version() {
-  aws lambda update-function-code --function-name "$1" --s3-bucket "$2" --s3-key "$3"--publish --query "Version" --output text || {
+  aws lambda update-function-code --function-name "$1" --s3-bucket "$2" --s3-key "$3" --publish --query "Version" --output text || {
     echo "ERROR: Failed to update function for $1."
     exit 1
   }
