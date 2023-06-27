@@ -1,0 +1,14 @@
+{
+  "tabWidth": 2,
+  "printWidth": 80,
+  "endOfLine": "lf",
+  "semi": true,
+  "overrides": [
+    {
+      "files": ["*.json"],
+      "options": {
+        "printWidth": 60
+      }
+    }
+  ]
+}

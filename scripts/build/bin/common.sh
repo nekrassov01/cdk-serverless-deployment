@@ -47,6 +47,13 @@ get_distribution_etag() {
   }
 }
 
+get_distribution_arn() {
+  $ aws cloudfront get-distribution --id "$1" --query 'Distribution.ARN' --output text || {
+    echo "ERROR: Failed to get 'ARN' from '$1'."
+    exit 1
+  }
+}
+
 get_distribution_config() {
   aws cloudfront get-distribution-config --id "$1" || {
     echo "ERROR: Failed to get 'DistributionConfig' from '$1'."
@@ -136,8 +143,15 @@ wait_distribution_deploy() {
   done
 }
 
+tag_distribution() {
+  aws cloudfront tag-resource --resource "$1" --tags "Items=[{Key=$2,Value=$3}]" || {
+    echo "ERROR: Failed to tag distribution for $1."
+    exit 1
+  }
+}
+
 update_function_code_and_get_version() {
-  aws lambda update-function-code --function-name "$1" --s3-bucket "$2" --s3-key "$3" --publish --query "Version" --output text || {
+  aws lambda update-function-code --function-name "$1" --s3-bucket "$2" --s3-key "$3"--tags "COMMIT_HASH=$CODEBUILD_RESOLVED_SOURCE_VERSION" --publish --query "Version" --output text || {
     echo "ERROR: Failed to update function for $1."
     exit 1
   }

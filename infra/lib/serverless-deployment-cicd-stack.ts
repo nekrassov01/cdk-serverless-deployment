@@ -75,11 +75,6 @@ export class CicdStack extends Stack {
         ["PipelineHandlerRoleAdditionalPolicy"]: new iam.PolicyDocument({
           statements: [
             new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-              resources: [`arn:aws:logs:${this.region}:${this.account}:*`],
-            }),
-            new iam.PolicyStatement({
               resources: [`arn:aws:codepipeline:${this.region}:${this.account}:*`],
               actions: [
                 "codepipeline:GetPipeline",

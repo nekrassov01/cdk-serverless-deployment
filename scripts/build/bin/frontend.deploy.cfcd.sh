@@ -66,6 +66,7 @@ prod_distribution_config=$(jq ".DistributionConfig.ContinuousDeploymentPolicyId 
 update_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_config" "$prod_distribution_etag"
 wait_distribution_deploy "$PRODUCTION_DISTRIBUTION_ID"
 wait_distribution_deploy "$stg_distribution_id"
+tag_distribution "$(get_distribution_arn "$stg_distribution_id")" "COMMIT_HASH" "$CODEBUILD_RESOLVED_SOURCE_VERSION"
 
 echo "PROCESS: Putting CloudFront staging distribution ID to SSM parameter store."
 

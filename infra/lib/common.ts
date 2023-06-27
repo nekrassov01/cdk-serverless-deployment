@@ -194,9 +194,9 @@ export class Common {
   public readonly branch = app.node.tryGetContext("branch");
   public readonly resourceConfig = app.node.tryGetContext("resourceConfig");
   public readonly environments = app.node.tryGetContext("environments");
+  public readonly environmentNames = Object.values(environmentName);
   public readonly pipelines = app.node.tryGetContext("pipelines");
   public readonly containers = app.node.tryGetContext("containers");
-  public readonly validEnvironmentNames = Object.values(environmentName);
 
   // Validate environment settings and return bool
   private isValidEnvironmentConfig(): boolean {
@@ -205,13 +205,13 @@ export class Common {
     const envNameUniqueLength = Array.from(new Set(envNames)).length;
 
     // Is the environment name defined in `environment` valid
-    if (!this.validEnvironmentNames.includes(targetEnv)) {
+    if (!this.environmentNames.includes(targetEnv)) {
       return false;
     }
 
     // Is each environment name defined in `environments` valid
     envNames.forEach((value: EnvironmentName): boolean | void => {
-      if (!this.validEnvironmentNames.includes(value)) {
+      if (!this.environmentNames.includes(value)) {
         return false;
       }
     });
@@ -320,7 +320,7 @@ export class Common {
   // Validate container setting and return bool
   private isValidContainerConfig(containerConfig: IContainerConfig): boolean {
     // Is the environment name valid
-    if (!this.validEnvironmentNames.includes(containerConfig.environment)) {
+    if (!this.environmentNames.includes(containerConfig.environment)) {
       return false;
     }
 
@@ -839,6 +839,12 @@ export class Common {
     const funcName = Common.convertPascalToKebabCase(functionName);
     const env = this.getEnvironmentConfig();
 
+    const policy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+      resources: [`arn:aws:logs:${env.region}:${env.account}:*`],
+    });
+
     // Create role if undefined
     if (!role) {
       role = new iam.Role(scope, `${id}Role`, {
@@ -846,16 +852,12 @@ export class Common {
         assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
         inlinePolicies: {
           [`${id}RoleAdditionalPolicy`]: new iam.PolicyDocument({
-            statements: [
-              new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-                resources: [`arn:aws:logs:${env.region}:${env.account}:*`],
-              }),
-            ],
+            statements: [policy],
           }),
         },
       });
+    } else {
+      role.addToPolicy(policy);
     }
 
     // Create DLQ
