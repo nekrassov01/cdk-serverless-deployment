@@ -12,6 +12,8 @@ for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME PRODUCTION_DISTRIBUTION_ID FRO
   check_variable "$var"
 done
 
+echo "CommitHash: $CODEBUILD_RESOLVED_SOURCE_VERSION"
+
 echo "PROCESS: Copying CloudFront production distribution for staging distribution."
 
 prod_distribution_etag=$(get_distribution_etag "$PRODUCTION_DISTRIBUTION_ID")
@@ -66,7 +68,9 @@ prod_distribution_config=$(jq ".DistributionConfig.ContinuousDeploymentPolicyId 
 update_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_config" "$prod_distribution_etag"
 wait_distribution_deploy "$PRODUCTION_DISTRIBUTION_ID"
 wait_distribution_deploy "$stg_distribution_id"
-tag_distribution "$(get_distribution_arn "$stg_distribution_id")" "COMMIT_HASH" "$CODEBUILD_RESOLVED_SOURCE_VERSION"
+if [[ -n "$CODEBUILD_RESOLVED_SOURCE_VERSION" ]]; then
+  tag_distribution "$(get_distribution_arn "$stg_distribution_id")" "CommitHash" "$CODEBUILD_RESOLVED_SOURCE_VERSION"
+fi
 
 echo "PROCESS: Putting CloudFront staging distribution ID to SSM parameter store."
 

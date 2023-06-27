@@ -5,3 +5,7 @@ unused
 
 node_modules
 package-lock.json
+
+!scripts
+!scripts/build
+!scripts/build/*

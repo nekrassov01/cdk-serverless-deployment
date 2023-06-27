@@ -13,16 +13,15 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE ENVIRONMENT BRANCH REACT_APP_BACKEND_DOMAIN REACT_APP_BACKEND_STAGE; do
+for var in SERVICE ENVIRONMENT BRANCH; do
   check_variable "$var"
 done
 
-echo "PROCESS: Building react application."
+echo "PROCESS: Building lambda function."
 
 npm install --prefix "$1"
 npm run lint --prefix "$1"
 npm run test --prefix "$1" -- --watchAll=false
-npm run build --prefix "$1"
 
-echo "SUCCESS: React application building completed successfully."
+echo "SUCCESS: Lambda function building completed successfully."
 exit 0

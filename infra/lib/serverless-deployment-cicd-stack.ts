@@ -232,6 +232,7 @@ export class CicdStack extends Stack {
                 "cloudfront:CopyDistribution",
                 "cloudfront:GetInvalidation",
                 "cloudfront:CreateInvalidation",
+                "cloudfront:TagResource",
               ],
               resources: [`arn:aws:cloudfront::${this.account}:distribution/*`],
             }),
@@ -671,6 +672,7 @@ export class CicdStack extends Stack {
 
     // Create backend pipeline artifact output
     const backendPipelinesourceOutput = new codepipeline.Artifact(sourceStageName);
+    const backendBuildOutput = new codepipeline.Artifact(buildStageName);
 
     // Create s3 bucket for backend pipeline artifact
     const backendArtifactBucket = common.createBucket(this, "BackendArtifactBucket", {
@@ -683,6 +685,48 @@ export class CicdStack extends Stack {
     // Create backend pipelines
     for (const pipeline of backendPipelines) {
       const functionName = Common.convertKebabToPascalCase(pipeline.name);
+
+      // Create codebuild project role for backend
+      const backendBuildProjectRole = new iam.Role(this, `${functionName}BuildProjectRole`, {
+        roleName: common.getResourceName(`${pipeline.name}-build-project-role`),
+        assumedBy: new iam.ServicePrincipal("codebuild.amazonaws.com"),
+      });
+
+      // Create codebuild project for backend
+      const backendBuildProject = new codebuild.PipelineProject(this, `${functionName}BuildProject`, {
+        projectName: common.getResourceName(`${pipeline.name}-build-project`),
+        buildSpec: codebuild.BuildSpec.fromSourceFilename(
+          `${resourceConfig.codebuild.localDir}/buildspec.backend.build.yml`
+        ),
+        environment: {
+          buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
+        },
+        environmentVariables: {
+          SERVICE: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: common.service,
+          },
+          ENVIRONMENT: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: common.environment,
+          },
+          BRANCH: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: common.branch,
+          },
+        },
+        badge: false,
+        role: backendBuildProjectRole,
+        logging: {
+          cloudWatch: {
+            logGroup: new logs.LogGroup(this, `${functionName}BuildProjectLogGroup`, {
+              logGroupName: common.getResourceNamePath(`codebuild/${pipeline.name}-build-project`),
+              removalPolicy: common.getRemovalPolicy(),
+              retention: common.getLogsRetentionDays(),
+            }),
+          },
+        },
+      });
 
       // Create codebuild project role for backend
       const backendDeployProjectRole = new iam.Role(this, `${functionName}DeployProjectRole`, {
@@ -698,7 +742,12 @@ export class CicdStack extends Stack {
               }),
               new iam.PolicyStatement({
                 effect: iam.Effect.ALLOW,
-                actions: ["lambda:UpdateFunctionCode", "lambda:UpdateAlias"],
+                actions: [
+                  "lambda:GetFunction",
+                  "lambda:UpdateFunctionCode",
+                  "lambda:UpdateAlias",
+                  "lambda:TagResource",
+                ],
                 resources: [
                   `arn:aws:lambda:${this.region}:${this.account}:function:${common.getResourceName(pipeline.name)}`,
                 ],
@@ -711,7 +760,9 @@ export class CicdStack extends Stack {
       // Create codebuild project for backend
       const backendDeployProject = new codebuild.PipelineProject(this, `${functionName}DeployProject`, {
         projectName: common.getResourceName(`${pipeline.name}-deploy-project`),
-        buildSpec: codebuild.BuildSpec.fromSourceFilename(`${resourceConfig.codebuild.localDir}/buildspec.backend.yml`),
+        buildSpec: codebuild.BuildSpec.fromSourceFilename(
+          `${resourceConfig.codebuild.localDir}/buildspec.backend.deploy.yml`
+        ),
         environment: {
           buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
         },
@@ -774,6 +825,12 @@ export class CicdStack extends Stack {
         assumedBy: new iam.ServicePrincipal("events.amazonaws.com"),
       });
 
+      // Create codebuild build project role for backend
+      const backendBuildActionRole = new iam.Role(this, `${functionName}BuildActionRole`, {
+        roleName: common.getResourceName(`${pipeline.name}-build-action-role`),
+        assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:root`),
+      });
+
       // Create codebuild deploy project role for backend
       const backendDeployActionRole = new iam.Role(this, `${functionName}DeployActionRole`, {
         roleName: common.getResourceName(`${pipeline.name}-deploy-action-role`),
@@ -792,11 +849,21 @@ export class CicdStack extends Stack {
         trigger: codepipeline_actions.CodeCommitTrigger.NONE,
       });
 
+      // Create backend pipeline action for build stage
+      const backendBuildAction = new codepipeline_actions.CodeBuildAction({
+        actionName: buildStageName,
+        project: backendBuildProject,
+        input: backendPipelinesourceOutput,
+        outputs: [backendBuildOutput],
+        role: backendBuildActionRole,
+        runOrder: 1,
+      });
+
       // Create backend pipeline action for deploy stage
       const backendDeployAction = new codepipeline_actions.CodeBuildAction({
         actionName: deployStageName,
         project: backendDeployProject,
-        input: backendPipelinesourceOutput,
+        input: backendBuildOutput,
         outputs: undefined,
         role: backendDeployActionRole,
         runOrder: 1,
@@ -832,6 +899,10 @@ export class CicdStack extends Stack {
           {
             stageName: sourceStageName,
             actions: [backendPipelinesourceAction],
+          },
+          {
+            stageName: buildStageName,
+            actions: [backendBuildAction],
           },
           {
             stageName: deployStageName,
