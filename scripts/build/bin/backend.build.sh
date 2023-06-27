@@ -13,15 +13,15 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE ENVIRONMENT BRANCH; do
+for var in SERVICE ENVIRONMENT BRANCH TARGET_PATH; do
   check_variable "$var"
 done
 
 echo "PROCESS: Building lambda function."
 
-npm install --prefix "$1"
-npm run lint --prefix "$1"
-npm run test --prefix "$1" -- --watchAll=false
+npm install --prefix "$TARGET_PATH"
+npm run lint --prefix "$TARGET_PATH"
+npm run test --prefix "$TARGET_PATH" -- --watchAll=false
 
 echo "SUCCESS: Lambda function building completed successfully."
 exit 0

@@ -714,6 +714,10 @@ export class CicdStack extends Stack {
             type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
             value: common.branch,
           },
+          TARGET_PATH: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: pipeline.path,
+          },
         },
         badge: false,
         role: backendBuildProjectRole,
@@ -779,13 +783,13 @@ export class CicdStack extends Stack {
             type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
             value: common.branch,
           },
+          TARGET_PATH: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: pipeline.path,
+          },
           BUCKET_NAME: {
             type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
             value: common.getResourceName(resourceConfig.lambda.bucket),
-          },
-          BUCKET_PATH: {
-            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-            value: pipeline.path,
           },
           FUNCTION_NAME: {
             type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
