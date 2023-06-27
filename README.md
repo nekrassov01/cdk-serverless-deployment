@@ -2,7 +2,8 @@
 
 ## Overview
 
-This is a sample monorepo with a frontend deployed with CloudFront + S3 and a backend deployed with API Gateway + Lambda, each element configured to be deployed separately and continuously.
+This is a sample monorepo with a frontend deployed with CloudFront + S3 and a backend deployed with API Gateway + Lambda,
+each element configured to be deployed separately and continuously.
 
 ## Directories
 
