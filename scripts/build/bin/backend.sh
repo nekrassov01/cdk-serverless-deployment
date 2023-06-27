@@ -12,14 +12,13 @@ for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME BUCKET_PATH FUNCTION_NAME FUNC
   check_variable "$var"
 done
 
-echo "PROCESS: Deploying lambda function stack."
 cd "$BUCKET_PATH"
 
 echo "PROCESS: Installing node modules."
 npm install
 
 echo "PROCESS: Packaging lambda function."
-zip -r "$FUNCTION_PACKAGE_NAME" . >/dev/null
+zip -r "$FUNCTION_PACKAGE_NAME" . &>/dev/null
 
 echo "PROCESS: Uploading lambda function."
 aws s3 cp "$FUNCTION_PACKAGE_NAME" s3://"$BUCKET_NAME/$BUCKET_PATH"/

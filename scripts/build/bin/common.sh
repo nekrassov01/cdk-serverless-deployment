@@ -144,7 +144,7 @@ wait_distribution_deploy() {
 }
 
 tag_distribution() {
-  aws cloudfront tag-resource --resource "$1" --tags "Items=[{Key=$2,Value=$3}]" || {
+  aws cloudfront tag-resource --resource "$1" --tags "$2=$3" || {
     echo "ERROR: Failed to tag distribution for $1."
     exit 1
   }
@@ -172,7 +172,7 @@ update_function_alias() {
 }
 
 tag_function() {
-  aws function tag-resource --resource "$1" --tags "Items=[{Key=$2,Value=$3}]" || {
+  aws lambda tag-resource --resource "$1" --tags "$2=$3" || {
     echo "ERROR: Failed to tag function for $1."
     exit 1
   }
