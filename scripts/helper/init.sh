@@ -39,11 +39,20 @@ bucket_name="$service-$environment-$branch-$bucket"
 
 echo "[STEP1] PROCESS: Put frontend version string to SSM parameter store."
 
-if aws ssm put-parameter --name "$parameter_key" --value "$1" --type String --region "$region" --overwrite &>/dev/null; then
-  echo "[STEP1] SUCCESS: Parameter '$parameter_key' stored in SSM parameter store."
+if [[ -n "$1" ]]; then
+  if aws ssm put-parameter --name "$parameter_key" --value "$1" --type String --region "$region" --overwrite &>/dev/null; then
+    echo "[STEP1] SUCCESS: Parameter '$parameter_key' stored in SSM parameter store."
+  else
+    echo "[STEP1] ERROR: Could not store parameter '$parameter_key' in SSM parameter store."
+    echo "Process aborted." && exit 1
+  fi
 else
-  echo "[STEP1] ERROR: Could not store parameter '$parameter_key' in SSM parameter store."
-  echo "Process aborted." && exit 1
+  if aws ssm get-parameter --name "$parameter_key" &>/dev/null; then
+    echo "[STEP1] SUCCESS: Parameter '$parameter_key' is present, skipping."
+  else
+    echo "[STEP1] ERROR: Pass the frontend version to be stored in the SSM parameter store as an argument. (e.g. 'v1')"
+    echo "Process aborted." && exit 1
+  fi
 fi
 
 # ---------
