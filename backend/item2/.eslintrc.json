@@ -9,9 +9,7 @@
     "prettier/prettier": "error",
     "no-unused-vars": [
       "error",
-      {
-        "argsIgnorePattern": "^context$"
-      }
+      { "argsIgnorePattern": "^context$" }
     ]
   },
   "env": {

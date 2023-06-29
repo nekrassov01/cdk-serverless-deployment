@@ -33,7 +33,7 @@ echo "PROCESS: Tagging lambda function to commit hash."
 if [[ -n "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" ]]; then
   tag_function "$(get_function_arn "$FUNCTION_NAME")" "CommitHash" "$CODEBUILD_RESOLVED_SOURCE_VERSION"
 else
-  echo "CODEBUILD_RESOLVED_SOURCE_VERSION is not set"
+  echo "WARNING: CODEBUILD_RESOLVED_SOURCE_VERSION is not set"
 fi
 
 echo "SUCCESS: Lambda function deploying completed successfully."

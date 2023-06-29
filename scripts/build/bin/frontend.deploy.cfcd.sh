@@ -70,7 +70,7 @@ wait_distribution_deploy "$stg_distribution_id"
 if [[ -n "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" ]]; then
   tag_distribution "$(get_distribution_arn "$stg_distribution_id")" "CommitHash" "$CODEBUILD_RESOLVED_SOURCE_VERSION"
 else
-  echo "CODEBUILD_RESOLVED_SOURCE_VERSION is not set."
+  echo "WARNING: CODEBUILD_RESOLVED_SOURCE_VERSION is not set."
 fi
 
 echo "PROCESS: Putting CloudFront staging distribution ID to SSM parameter store."
