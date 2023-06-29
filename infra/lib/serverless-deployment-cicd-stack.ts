@@ -16,7 +16,7 @@ import {
 import { Construct } from "constructs";
 import { Common, IEnvironmentConfig, IPipelineConfig, IResourceConfig, pipelineType } from "./common";
 
-export interface CicdStackStackProps extends StackProps {
+export interface CicdStackProps extends StackProps {
   service: string;
   environment: string;
   branch: string;
@@ -29,7 +29,7 @@ export interface CicdStackStackProps extends StackProps {
 }
 
 export class CicdStack extends Stack {
-  constructor(scope: Construct, id: string, props: CicdStackStackProps) {
+  constructor(scope: Construct, id: string, props: CicdStackProps) {
     super(scope, id, props);
 
     const {

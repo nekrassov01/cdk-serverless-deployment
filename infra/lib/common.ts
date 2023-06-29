@@ -896,7 +896,7 @@ export class Common {
     });
 
     // Update function alias
-    const alias = new lambda.Alias(scope, `${id}Alias"`, {
+    const alias = new lambda.Alias(scope, `${id}Alias`, {
       aliasName: this.resourceConfig.lambda.alias,
       version: func.currentVersion,
     });
