@@ -15,9 +15,9 @@ import { Construct } from "constructs";
 import { Common, IEnvironmentConfig, IResourceConfig } from "./common";
 
 export interface CommonStackProps extends StackProps {
+  domainName: string;
   environmentConfig: IEnvironmentConfig;
   resourceConfig: IResourceConfig;
-  domainName: string;
 }
 
 export class HostingStack extends Stack {

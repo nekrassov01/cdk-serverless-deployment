@@ -8,9 +8,7 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE ENVIRONMENT BRANCH TARGET_PATH; do
-  check_variable "$var"
-done
+check_variable TARGET_PATH
 
 echo "PROCESS: Building lambda function."
 

@@ -8,7 +8,7 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME TARGET_PATH FUNCTION_NAME FUNCTION_ALIAS FUNCTION_PACKAGE_NAME; do
+for var in BUCKET_NAME TARGET_PATH FUNCTION_NAME FUNCTION_ALIAS FUNCTION_PACKAGE_NAME; do
   check_variable "$var"
 done
 

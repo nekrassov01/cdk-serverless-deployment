@@ -13,7 +13,7 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE ENVIRONMENT BRANCH REACT_APP_BACKEND_DOMAIN REACT_APP_BACKEND_STAGE; do
+for var in REACT_APP_BACKEND_DOMAIN REACT_APP_BACKEND_STAGE; do
   check_variable "$var"
 done
 

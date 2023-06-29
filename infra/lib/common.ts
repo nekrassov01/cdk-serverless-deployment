@@ -9,7 +9,7 @@ import {
   Size,
   Tags,
   aws_applicationautoscaling as aas,
-  aws_codepipeline_actions as actions,
+  aws_codepipeline_actions as codepipeline_actions,
   aws_ec2 as ec2,
   aws_ecr as ecr,
   aws_iam as iam,
@@ -24,7 +24,7 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 
 const app = new App();
 
-const environmentName = {
+export const environmentName = {
   Development: "dev",
   Staging: "stg",
   Production: "prod",
@@ -276,7 +276,7 @@ export class Common {
     });
   }
 
-  // Get CodeCommit repository remote branche list
+  // Get CodeCommit remote repository branch list
   private async getCodeCommitRemoteBranches(): Promise<ListBranchesCommandOutput> {
     const client = new CodeCommitClient({ region: this.getEnvironmentConfig().region });
     return await client.send(new ListBranchesCommand({ repositoryName: this.repository }));
@@ -524,8 +524,10 @@ export class Common {
   }
 
   // Default pipeline trigger
-  public getPipelineTrigger(): actions.CodeCommitTrigger {
-    return this.isProductionOrStaging() ? actions.CodeCommitTrigger.NONE : actions.CodeCommitTrigger.EVENTS;
+  public getPipelineTrigger(): codepipeline_actions.CodeCommitTrigger {
+    return this.isProductionOrStaging()
+      ? codepipeline_actions.CodeCommitTrigger.NONE
+      : codepipeline_actions.CodeCommitTrigger.EVENTS;
   }
 
   // Get string parameter from SSM parameter store

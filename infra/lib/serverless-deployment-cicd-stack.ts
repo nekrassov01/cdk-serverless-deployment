@@ -14,19 +14,35 @@ import {
   aws_sns as sns,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { Common, IEnvironmentConfig, IPipelineConfig, IResourceConfig } from "./common";
+import { Common, IEnvironmentConfig, IPipelineConfig, IResourceConfig, pipelineType } from "./common";
 
 export interface CicdStackStackProps extends StackProps {
+  service: string;
+  environment: string;
+  branch: string;
+  repository: string;
+  domainName: string;
   environmentConfig: IEnvironmentConfig;
   resourceConfig: IResourceConfig;
-  domainName: string;
-  backendPipelines: IPipelineConfig[];
+  pipelines: IPipelineConfig[];
+  addresses: string[];
 }
+
 export class CicdStack extends Stack {
   constructor(scope: Construct, id: string, props: CicdStackStackProps) {
     super(scope, id, props);
 
-    const { environmentConfig, resourceConfig, domainName, backendPipelines } = props;
+    const {
+      service,
+      environment,
+      branch,
+      repository,
+      environmentConfig,
+      resourceConfig,
+      domainName,
+      pipelines,
+      addresses,
+    } = props;
     const common = new Common();
     const sourceStageName = "Source";
     const buildStageName = "Build";
@@ -57,10 +73,10 @@ export class CicdStack extends Stack {
     );
 
     // Get codecommit repository
-    const codeCommitRepository = codecommit.Repository.fromRepositoryName(
+    const codeCommitRepository = codecommit.Repository.fromRepositoryArn(
       this,
       "CodeCommitRepository",
-      common.repository
+      `arn:aws:codecommit:${environmentConfig.region}:${environmentConfig.account}:${repository}`
     );
 
     /**
@@ -110,7 +126,7 @@ export class CicdStack extends Stack {
       }),
       role: pipelineHandlerRole,
       environment: {
-        PIPELINES: JSON.stringify(common.pipelines),
+        PIPELINES: JSON.stringify(pipelines),
       },
       parameterStore: false,
     });
@@ -127,7 +143,7 @@ export class CicdStack extends Stack {
         detail: {
           event: ["referenceUpdated"],
           referenceType: ["branch"],
-          referenceName: [common.branch],
+          referenceName: [branch],
         },
       },
     });
@@ -166,18 +182,6 @@ export class CicdStack extends Stack {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },
       environmentVariables: {
-        SERVICE: {
-          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.service,
-        },
-        ENVIRONMENT: {
-          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.environment,
-        },
-        BRANCH: {
-          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.branch,
-        },
         REACT_APP_BACKEND_DOMAIN: {
           type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
           value: domainName,
@@ -263,15 +267,15 @@ export class CicdStack extends Stack {
       environmentVariables: {
         SERVICE: {
           type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.service,
+          value: service,
         },
         ENVIRONMENT: {
           type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.environment,
+          value: environment,
         },
         BRANCH: {
           type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.branch,
+          value: branch,
         },
         BUCKET_NAME: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
@@ -353,18 +357,6 @@ export class CicdStack extends Stack {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },
       environmentVariables: {
-        SERVICE: {
-          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.service,
-        },
-        ENVIRONMENT: {
-          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.environment,
-        },
-        BRANCH: {
-          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.branch,
-        },
         PRODUCTION_DISTRIBUTION_ID: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
           value: common.getResourceNamePath("cloudfront/cfcd-production"),
@@ -427,7 +419,7 @@ export class CicdStack extends Stack {
     const frontendSourceAction = new codepipeline_actions.CodeCommitSourceAction({
       actionName: sourceStageName,
       repository: codeCommitRepository,
-      branch: common.branch,
+      branch: branch,
       output: frontendSourceOutput,
       role: frontendSourceActionRole,
       eventRole: frontendSourceActionEventRole,
@@ -466,7 +458,7 @@ export class CicdStack extends Stack {
         topicName: common.getResourceName("frontend-approval-topic"),
         displayName: common.getResourceName("frontend-approval-topic"),
       }),
-      notifyEmails: common.addresses,
+      notifyEmails: addresses,
       runOrder: 1,
     });
 
@@ -595,7 +587,7 @@ export class CicdStack extends Stack {
       projectName: common.getResourceName("frontend-cleanup-project"),
       source: codebuild.Source.codeCommit({
         repository: codeCommitRepository,
-        branchOrRef: common.branch,
+        branchOrRef: branch,
         cloneDepth: 1,
       }),
       buildSpec: codebuild.BuildSpec.fromSourceFilename(
@@ -605,18 +597,6 @@ export class CicdStack extends Stack {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
       },
       environmentVariables: {
-        SERVICE: {
-          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.service,
-        },
-        ENVIRONMENT: {
-          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.environment,
-        },
-        BRANCH: {
-          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: common.branch,
-        },
         PRODUCTION_DISTRIBUTION_ID: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
           value: common.getResourceNamePath("cloudfront/cfcd-production"),
@@ -683,7 +663,8 @@ export class CicdStack extends Stack {
     });
 
     // Create backend pipelines
-    for (const pipeline of backendPipelines) {
+
+    for (const pipeline of common.getPipelineConfigByType(pipelineType.Backend)) {
       const functionName = Common.convertKebabToPascalCase(pipeline.name);
 
       // Create codebuild project role for backend
@@ -702,18 +683,6 @@ export class CicdStack extends Stack {
           buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
         },
         environmentVariables: {
-          SERVICE: {
-            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-            value: common.service,
-          },
-          ENVIRONMENT: {
-            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-            value: common.environment,
-          },
-          BRANCH: {
-            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-            value: common.branch,
-          },
           TARGET_PATH: {
             type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
             value: pipeline.path,
@@ -773,15 +742,15 @@ export class CicdStack extends Stack {
         environmentVariables: {
           SERVICE: {
             type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-            value: common.service,
+            value: service,
           },
           ENVIRONMENT: {
             type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-            value: common.environment,
+            value: environment,
           },
           BRANCH: {
             type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-            value: common.branch,
+            value: branch,
           },
           TARGET_PATH: {
             type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
@@ -845,7 +814,7 @@ export class CicdStack extends Stack {
       const backendPipelinesourceAction = new codepipeline_actions.CodeCommitSourceAction({
         actionName: sourceStageName,
         repository: codeCommitRepository,
-        branch: common.branch,
+        branch: branch,
         output: backendPipelinesourceOutput,
         role: backendPipelinesourceActionRole,
         eventRole: backendPipelinespurceActionEventRole,

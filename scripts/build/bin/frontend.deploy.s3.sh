@@ -13,7 +13,7 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME FRONTEND_VERSION; do
+for var in BUCKET_NAME FRONTEND_VERSION; do
   check_variable "$var"
 done
 
