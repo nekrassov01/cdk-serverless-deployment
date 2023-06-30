@@ -40,13 +40,6 @@ deploy_content() {
   }
 }
 
-get_distribution() {
-  aws cloudfront get-distribution --id "$1" || {
-    echo "ERROR: Failed to get distribution from '$1'."
-    exit 1
-  }
-}
-
 get_distribution_etag() {
   aws cloudfront get-distribution --id "$1" --query "ETag" --output text || {
     echo "ERROR: Failed to get 'ETag' from '$1'."
@@ -96,30 +89,9 @@ update_distribution_with_staging_config() {
   }
 }
 
-get_continuous_deployment_policy_id() {
-  aws cloudfront get-distribution --id "$1" --query "Distribution.DistributionConfig.ContinuousDeploymentPolicyId" --output text || {
-    echo "ERROR: Failed to get continuous deployment policy '$1' id."
-    exit 1
-  }
-}
-
-get_continuous_deployment_policy() {
-  aws cloudfront get-continuous-deployment-policy --id "$1" || {
-    echo "ERROR: Failed to get continuous deployment policy '$1'."
-    exit 1
-  }
-}
-
 get_continuous_deployment_policy_etag() {
   aws cloudfront get-continuous-deployment-policy --id "$1" --query "ETag" --output text || {
     echo "ERROR: Failed to get continuous deployment policy '$1' ETag."
-    exit 1
-  }
-}
-
-update_continuous_deployment_policy() {
-  aws cloudfront update-continuous-deployment-policy --id "$1" --if-match "$2" --continuous-deployment-policy-config "$3" || {
-    echo "ERROR: Failed to update continuous deployment policy '$1'."
     exit 1
   }
 }
@@ -172,7 +144,7 @@ wait_distribution_deploy() {
 }
 
 tag_distribution() {
-  aws cloudfront tag-resource --resource "$1" --tags "Items=[{Key=$2,Value=$3}]" || {
+  aws cloudfront tag-resource --resource "$1" --tags "$2=$3" || {
     echo "ERROR: Failed to tag $2 for $1."
     exit 1
   }
@@ -201,7 +173,7 @@ update_function_alias() {
 
 tag_function() {
   aws lambda tag-resource --resource "$1" --tags "$2=$3" || {
-    echo "ERROR: Failed to tag $2 for $1."
+    echo "ERROR: Failed to tag function for $1."
     exit 1
   }
 }
