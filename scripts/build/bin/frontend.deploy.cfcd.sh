@@ -12,13 +12,56 @@ for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME PRODUCTION_DISTRIBUTION_ID STA
   check_variable "$var"
 done
 
-echo "PROCESS: Copying CloudFront production distribution for staging distribution."
-
-prod_distribution_etag=$(get_distribution_etag "$PRODUCTION_DISTRIBUTION_ID")
-
 if [[ $STAGING_DISTRIBUTION_ID == "dummy" ]]; then
+  echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: exists"
+  echo "PROCESS: Copying CloudFront production distribution for staging distribution."
+
+  prod_distribution_etag=$(get_distribution_etag "$PRODUCTION_DISTRIBUTION_ID")
   stg_distribution=$(copy_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_etag")
+
+  echo "PROCESS: Creating CloudFront continuous deployment policy."
+
+  continuous_deployment_policy_config=$(
+    cat <<-EOS
+{
+    "StagingDistributionDnsNames": {
+        "Quantity": 1,
+        "Items": [
+            $(jq '.Distribution.DomainName' <<<"$updated_stg_distribution")
+        ]
+    },
+    "Enabled": true,
+    "TrafficConfig": {
+        "SingleHeaderConfig": {
+            "Header": "aws-cf-cd-staging",
+            "Value": "true"
+        },
+        "Type": "SingleHeader"
+    }
+}
+EOS
+  )
+  continuous_deployment_policy=$(create_continuous_deployment_policy "$continuous_deployment_policy_config")
+
+  echo "PROCESS: Attaching continuous deployment policy to CloudFront production distribution."
+
+  continuous_deployment_policy_id=$(jq '.ContinuousDeploymentPolicy.Id' <<<"$continuous_deployment_policy")
+  prod_distribution_config=$(jq ".DistributionConfig.ContinuousDeploymentPolicyId = $continuous_deployment_policy_id | .DistributionConfig" < <(get_distribution_config "$PRODUCTION_DISTRIBUTION_ID"))
+  update_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_config" "$prod_distribution_etag"
+  wait_distribution_deploy "$PRODUCTION_DISTRIBUTION_ID"
+  wait_distribution_deploy "$stg_distribution_id"
+
+  if [[ -n "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" ]]; then
+    tag_distribution "$(get_distribution_arn "$stg_distribution_id")" "CommitHash" "$CODEBUILD_RESOLVED_SOURCE_VERSION"
+  else
+    echo "WARNING: CODEBUILD_RESOLVED_SOURCE_VERSION is not set."
+  fi
+
+  echo "PROCESS: Putting CloudFront staging distribution ID to SSM parameter store."
+
+  put_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/cloudfront/cfcd-staging" "$stg_distribution_id"
 else
+  echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: not present"
   stg_distribution=$(get_distribution "$STAGING_DISTRIBUTION_ID")
 fi
 
@@ -39,48 +82,6 @@ stg_distribution_config=$(
 )
 
 updated_stg_distribution=$(update_distribution "$stg_distribution_id" "$stg_distribution_config" "$stg_distribution_etag")
-
-echo "PROCESS: Creating CloudFront continuous deployment policy."
-
-continuous_deployment_policy_config=$(
-  cat <<-EOS
-{
-    "StagingDistributionDnsNames": {
-        "Quantity": 1,
-        "Items": [
-            $(jq '.Distribution.DomainName' <<<"$updated_stg_distribution")
-        ]
-    },
-    "Enabled": true,
-    "TrafficConfig": {
-        "SingleHeaderConfig": {
-            "Header": "aws-cf-cd-staging",
-            "Value": "true"
-        },
-        "Type": "SingleHeader"
-    }
-}
-EOS
-)
-continuous_deployment_policy=$(create_continuous_deployment_policy "$continuous_deployment_policy_config")
-
-echo "PROCESS: Attaching continuous deployment policy to CloudFront production distribution."
-
-continuous_deployment_policy_id=$(jq '.ContinuousDeploymentPolicy.Id' <<<"$continuous_deployment_policy")
-prod_distribution_config=$(jq ".DistributionConfig.ContinuousDeploymentPolicyId = $continuous_deployment_policy_id | .DistributionConfig" < <(get_distribution_config "$PRODUCTION_DISTRIBUTION_ID"))
-update_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_config" "$prod_distribution_etag"
-wait_distribution_deploy "$PRODUCTION_DISTRIBUTION_ID"
-wait_distribution_deploy "$stg_distribution_id"
-
-if [[ -n "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" ]]; then
-  tag_distribution "$(get_distribution_arn "$stg_distribution_id")" "CommitHash" "$CODEBUILD_RESOLVED_SOURCE_VERSION"
-else
-  echo "WARNING: CODEBUILD_RESOLVED_SOURCE_VERSION is not set."
-fi
-
-echo "PROCESS: Putting CloudFront staging distribution ID to SSM parameter store."
-
-put_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/cloudfront/cfcd-staging" "$stg_distribution_id"
 
 echo "SUCCESS: CloudFront deployment completed successfully."
 exit 0
