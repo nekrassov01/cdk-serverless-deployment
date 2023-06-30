@@ -96,9 +96,30 @@ update_distribution_with_staging_config() {
   }
 }
 
+get_continuous_deployment_policy_id() {
+  aws cloudfront get-distribution --id "$1" --query "Distribution.DistributionConfig.ContinuousDeploymentPolicyId" --output text || {
+    echo "ERROR: Failed to get continuous deployment policy '$1' id."
+    exit 1
+  }
+}
+
+get_continuous_deployment_policy() {
+  aws cloudfront get-continuous-deployment-policy --id "$1" || {
+    echo "ERROR: Failed to get continuous deployment policy '$1'."
+    exit 1
+  }
+}
+
 get_continuous_deployment_policy_etag() {
   aws cloudfront get-continuous-deployment-policy --id "$1" --query "ETag" --output text || {
     echo "ERROR: Failed to get continuous deployment policy '$1' ETag."
+    exit 1
+  }
+}
+
+update_continuous_deployment_policy() {
+  aws cloudfront update-continuous-deployment-policy --id "$1" --if-match "$2" --continuous-deployment-policy-config "$3" || {
+    echo "ERROR: Failed to delete continuous deployment policy '$1'."
     exit 1
   }
 }

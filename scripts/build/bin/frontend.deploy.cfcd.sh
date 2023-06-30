@@ -61,8 +61,16 @@ EOS
 
   put_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/cloudfront/cfcd-staging" "$stg_distribution_id"
 else
-  echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: exits"
+  echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: exists"
+
   stg_distribution=$(get_distribution "$STAGING_DISTRIBUTION_ID")
+
+  continuous_deployment_policy_id=$(get_continuous_deployment_policy_id "$STAGING_DISTRIBUTION_ID")
+  continuous_deployment_policy=$(get_continuous_deployment_policy "$continuous_deployment_policy_id")
+  continuous_deployment_policy_etag=$(jq '.ETag' <<<"$continuous_deployment_policy")
+  continuous_deployment_policy_config=$(jq '.Enabled = true' <<<"$continuous_deployment_policy")
+
+  update_continuous_deployment_policy "$continuous_deployment_policy_id" "$continuous_deployment_policy_etag" "$continuous_deployment_policy_config"
 fi
 
 echo "PROCESS: Updating CloudFront staging distribution config for app version: '$FRONTEND_VERSION'"
