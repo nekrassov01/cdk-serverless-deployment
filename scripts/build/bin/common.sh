@@ -119,7 +119,7 @@ get_continuous_deployment_policy_etag() {
 
 update_continuous_deployment_policy() {
   aws cloudfront update-continuous-deployment-policy --id "$1" --if-match "$2" --continuous-deployment-policy-config "$3" || {
-    echo "ERROR: Failed to delete continuous deployment policy '$1'."
+    echo "ERROR: Failed to update continuous deployment policy '$1'."
     exit 1
   }
 }
