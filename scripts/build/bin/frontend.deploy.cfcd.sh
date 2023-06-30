@@ -13,7 +13,7 @@ for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME PRODUCTION_DISTRIBUTION_ID STA
 done
 
 if [[ $STAGING_DISTRIBUTION_ID == "dummy" ]]; then
-  echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: exists"
+  echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: not present"
   echo "PROCESS: Copying CloudFront production distribution for staging distribution."
 
   prod_distribution_etag=$(get_distribution_etag "$PRODUCTION_DISTRIBUTION_ID")
@@ -61,7 +61,7 @@ EOS
 
   put_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/cloudfront/cfcd-staging" "$stg_distribution_id"
 else
-  echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: not present"
+  echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: exits"
   stg_distribution=$(get_distribution "$STAGING_DISTRIBUTION_ID")
 fi
 
