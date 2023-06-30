@@ -8,14 +8,19 @@ for cmd in aws jq; do
   check_command "$cmd"
 done
 
-for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME PRODUCTION_DISTRIBUTION_ID FRONTEND_VERSION; do
+for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME PRODUCTION_DISTRIBUTION_ID STAGING_DISTRIBUTION_ID FRONTEND_VERSION; do
   check_variable "$var"
 done
 
 echo "PROCESS: Copying CloudFront production distribution for staging distribution."
 
 prod_distribution_etag=$(get_distribution_etag "$PRODUCTION_DISTRIBUTION_ID")
-stg_distribution=$(copy_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_etag")
+
+if [[ $STAGING_DISTRIBUTION_ID == "dummy" ]]; then
+  stg_distribution=$(copy_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_etag")
+else
+  stg_distribution=$(get_distribution "$STAGING_DISTRIBUTION_ID")
+fi
 
 echo "PROCESS: Updating CloudFront staging distribution config for app version: '$FRONTEND_VERSION'"
 
