@@ -55,9 +55,6 @@ EOS
 
   echo "PROCESS: Putting CloudFront staging distribution ID to SSM parameter store."
   put_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/cloudfront/cfcd-staging" "$STAGING_DISTRIBUTION_ID"
-
-  echo "PROCESS: Waiting for CloudFront production distribution changes to propagate to edge locations."
-  wait_distribution_deploy "$PRODUCTION_DISTRIBUTION_ID"
 else
   echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: exists"
 
