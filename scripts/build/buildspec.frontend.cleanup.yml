@@ -6,6 +6,3 @@ phases:
   build:
     commands:
       - bash scripts/build/bin/frontend.cleanup.sh
-  post_build:
-    commands:
-      - bash scripts/build/bin/frontend.invalidate.sh
