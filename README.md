@@ -46,6 +46,13 @@ Configure each context in `cdk.json`. Sample as follows:
         "alias": "live",
         "package": "function.zip"
       },
+      "cloudfront": {
+        "singleHeaderConfig": {
+          "header": "aws-cf-cd-staging",
+          "value": true
+        },
+        "stagingDistributionCleanupEnabled": false
+      },
       "codebuild": {
         "localDir": "scripts/build"
       }

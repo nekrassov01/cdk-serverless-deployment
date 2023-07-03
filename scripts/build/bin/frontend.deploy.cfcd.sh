@@ -70,8 +70,9 @@ else
   update_continuous_deployment_policy "$continuous_deployment_policy_id" "$continuous_deployment_policy_etag" "$continuous_deployment_policy_config"
 fi
 
-echo "PROCESS: Get CloudFront latest ETag."
-stg_distribution_etag=$(get_distribution_etag "$STAGING_DISTRIBUTION_ID")
+echo "PROCESS: Get CloudFront latest configuration."
+stg_distribution=$(get_distribution "$STAGING_DISTRIBUTION_ID")
+stg_distribution_etag=$(jq -r '.ETag' <<<"$stg_distribution")
 
 echo "PROCESS: Updating CloudFront staging distribution config for application frontend version: '$FRONTEND_VERSION'"
 stg_distribution_config=$(
