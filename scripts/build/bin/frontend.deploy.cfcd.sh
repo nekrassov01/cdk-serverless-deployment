@@ -65,7 +65,7 @@ else
   continuous_deployment_policy_id=$(get_continuous_deployment_policy_id_from_distribution "$STAGING_DISTRIBUTION_ID")
   continuous_deployment_policy=$(get_continuous_deployment_policy "$continuous_deployment_policy_id")
   continuous_deployment_policy_etag=$(jq -r '.ETag' <<<"$continuous_deployment_policy")
-  continuous_deployment_policy_config=$(jq '.Enabled = true' <<<"$continuous_deployment_policy")
+  continuous_deployment_policy_config=$(jq '.Enabled = true | .ContinuousDeploymentPolicy.ContinuousDeploymentPolicyConfig' <<<"$continuous_deployment_policy")
   update_continuous_deployment_policy "$continuous_deployment_policy_id" "$continuous_deployment_policy_etag" "$continuous_deployment_policy_config"
 fi
 
