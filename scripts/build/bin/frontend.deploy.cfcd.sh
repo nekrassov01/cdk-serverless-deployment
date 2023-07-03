@@ -83,11 +83,11 @@ stg_distribution_config=$(
   end
   | .Distribution.DistributionConfig' <<<"$stg_distribution"
 )
-update_distribution "$stg_distribution_id" "$stg_distribution_config" "$stg_distribution_etag"
+update_distribution "$STAGING_DISTRIBUTION_ID" "$stg_distribution_config" "$stg_distribution_etag"
 
 echo "PROCESS: Tagging commit hash to CloudFront production distribution if exists CODEBUILD_RESOLVED_SOURCE_VERSION."
 if [[ -n "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" ]]; then
-  tag_distribution "$(get_distribution_arn "$stg_distribution_id")" "CommitHash" "$CODEBUILD_RESOLVED_SOURCE_VERSION"
+  tag_distribution "$(get_distribution_arn "$STAGING_DISTRIBUTION_ID")" "CommitHash" "$CODEBUILD_RESOLVED_SOURCE_VERSION"
 else
   echo "WARNING: CODEBUILD_RESOLVED_SOURCE_VERSION is not set."
 fi
