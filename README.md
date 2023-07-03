@@ -109,10 +109,10 @@ Configure each context in `cdk.json`. Sample as follows:
     ],
     "containers": [
       {
-        "name": "test-container",
+        "name": "sample",
         "environment": "dev",
-        "repository": "ecr-repo/test-container",
-        "imagePath": "src/image/test-container",
+        "repository": "ecr-repo/sample",
+        "imagePath": "src/image/sample-container",
         "version": ["1.0.0"],
         "tag": "1.0.0"
       }
