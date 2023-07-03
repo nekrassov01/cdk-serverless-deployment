@@ -559,7 +559,10 @@ export class CicdStack extends Stack {
       })
     );
 
-    // Create cleanup stage if context.stagingDistributionCleanupEnabled is true
+    /**
+     * Cleanup process if context.stagingDistributionCleanupEnabled is true
+     */
+
     if (resourceConfig.cloudfront.stagingDistributionCleanupEnabled) {
       // Create codebuild project role for frontend cleanup
       const frontendCleanupProjectRole = new iam.Role(this, "FrontendCleanupProjectRole", {
