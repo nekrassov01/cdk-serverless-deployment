@@ -12,6 +12,11 @@ for var in PRODUCTION_DISTRIBUTION_ID STAGING_DISTRIBUTION_ID; do
   check_variable "$var"
 done
 
+if [[ $STAGING_DISTRIBUTION_ID == "dummy" || $STAGING_DISTRIBUTION_ID == "deleted" ]]; then
+  echo "WARNING: The cleanup process is skipped because the staging distribution could not be detected in the SSM parameter store."
+  exit 0
+fi
+
 echo "PROCESS: Detaching continuous deployment policy from CloudFront production distribution."
 prod_distribution_config=$(get_distribution_config "$PRODUCTION_DISTRIBUTION_ID")
 continuous_deployment_policy_id=$(jq -r ".DistributionConfig.ContinuousDeploymentPolicyId" <<<"$prod_distribution_config")

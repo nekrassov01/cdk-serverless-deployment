@@ -293,9 +293,9 @@ export class CicdStack extends Stack {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
           value: common.getResourceNamePath("cloudfront/cfcd-staging"),
         },
-        STAGING_DISTRIBUTION_CLEANUP: {
+        STAGING_DISTRIBUTION_CLEANUP_ENABLED: {
           type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
-          value: resourceConfig.cloudfront.stagingDistributionCleanup,
+          value: resourceConfig.cloudfront.stagingDistributionCleanupEnabled,
         },
         CONTINUOUS_DEPLOYMENT_POLICY_CUSTOM_HEADER: {
           type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,

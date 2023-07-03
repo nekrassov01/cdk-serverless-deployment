@@ -56,7 +56,7 @@ export interface IResourceConfig {
       header: string;
       value: boolean;
     };
-    stagingDistributionCleanup: boolean;
+    stagingDistributionCleanupEnabled: boolean;
   };
   codebuild: {
     localDir: string;
