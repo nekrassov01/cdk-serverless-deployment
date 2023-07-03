@@ -59,7 +59,7 @@
       },
       "cloudfront": {
         "singleHeaderConfig": {
-          "header": "aws-cfcd-staging",
+          "header": "aws-cf-cd-staging",
           "value": true
         },
         "stagingDistributionCleanup": false
@@ -120,12 +120,12 @@
     ],
     "containers": [
       {
-        "name": "keycloak",
+        "name": "sample",
         "environment": "dev",
-        "repository": "ecr-repo/keycloak",
-        "imagePath": "src/image/keycloak",
-        "version": ["21.1.0"],
-        "tag": "21.1.0"
+        "repository": "kawashima/django",
+        "imagePath": "src/image/sample-container",
+        "version": ["1.0.0"],
+        "tag": "1.0.0"
       }
     ]
   }
