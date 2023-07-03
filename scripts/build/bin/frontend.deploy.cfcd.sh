@@ -22,7 +22,7 @@ if [[ $STAGING_DISTRIBUTION_CLEANUP_ENABLED == true || $STAGING_DISTRIBUTION_ID 
   prod_distribution=$(get_distribution "$PRODUCTION_DISTRIBUTION_ID")
   prod_distribution_etag=$(jq -r '.ETag' <<<"$prod_distribution")
   stg_distribution=$(copy_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_etag")
-  stg_distribution_id=$(jq -r '.Distribution.Id' <<<"$stg_distribution")
+  STAGING_DISTRIBUTION_ID=$(jq -r '.Distribution.Id' <<<"$stg_distribution")
 
   echo "PROCESS: Creating CloudFront continuous deployment policy."
   continuous_deployment_policy_config=$(
@@ -53,7 +53,7 @@ EOS
   update_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_config" "$prod_distribution_etag"
 
   echo "PROCESS: Putting CloudFront staging distribution ID to SSM parameter store."
-  put_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/cloudfront/cfcd-staging" "$stg_distribution_id"
+  put_ssm_parameter "/$SERVICE/$ENVIRONMENT/$BRANCH/cloudfront/cfcd-staging" "$STAGING_DISTRIBUTION_ID"
 
   echo "PROCESS: Waiting for CloudFront production distribution changes to propagate to edge locations."
   wait_distribution_deploy "$PRODUCTION_DISTRIBUTION_ID"
@@ -69,9 +69,10 @@ else
   update_continuous_deployment_policy "$continuous_deployment_policy_id" "$continuous_deployment_policy_etag" "$continuous_deployment_policy_config"
 fi
 
+echo "PROCESS: Get CloudFront latest ETag."
+stg_distribution_etag=$(get_distribution_etag "$STAGING_DISTRIBUTION_ID")
+
 echo "PROCESS: Updating CloudFront staging distribution config for application frontend version: '$FRONTEND_VERSION'"
-stg_distribution_id=$(jq -r '.Distribution.Id' <<<"$stg_distribution")
-stg_distribution_etag=$(get_distribution_etag "$stg_distribution_id")
 stg_distribution_config=$(
   jq --arg bucket "$BUCKET_NAME" --arg version "/$FRONTEND_VERSION" '
   .Distribution.DistributionConfig.Origins.Items[] |=

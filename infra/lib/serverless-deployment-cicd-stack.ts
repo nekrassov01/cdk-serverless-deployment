@@ -618,6 +618,18 @@ export class CicdStack extends Stack {
           buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
         },
         environmentVariables: {
+          SERVICE: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: service,
+          },
+          ENVIRONMENT: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: environment,
+          },
+          BRANCH: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: branch,
+          },
           PRODUCTION_DISTRIBUTION_ID: {
             type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
             value: common.getResourceNamePath("cloudfront/cfcd-production"),
@@ -727,6 +739,18 @@ export class CicdStack extends Stack {
           buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
         },
         environmentVariables: {
+          SERVICE: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: service,
+          },
+          ENVIRONMENT: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: environment,
+          },
+          BRANCH: {
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+            value: branch,
+          },
           PRODUCTION_DISTRIBUTION_ID: {
             type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
             value: common.getResourceNamePath("cloudfront/cfcd-production"),
