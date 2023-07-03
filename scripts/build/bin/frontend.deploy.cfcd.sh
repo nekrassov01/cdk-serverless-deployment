@@ -12,8 +12,8 @@ for var in SERVICE ENVIRONMENT BRANCH BUCKET_NAME PRODUCTION_DISTRIBUTION_ID STA
   check_variable "$var"
 done
 
-header_k=$(jq -r .header <<<"$CONTINUOUS_DEPLOYMENT_POLICY_CUSTOM_HEADER")
-header_v=$(jq -r .value <<<"$CONTINUOUS_DEPLOYMENT_POLICY_CUSTOM_HEADER")
+header_k=$(jq .header <<<"$CONTINUOUS_DEPLOYMENT_POLICY_CUSTOM_HEADER")
+header_v=$(jq .value <<<"$CONTINUOUS_DEPLOYMENT_POLICY_CUSTOM_HEADER")
 
 if [[ $STAGING_DISTRIBUTION_ID == "dummy" || $STAGING_DISTRIBUTION_ID == "deleted" ]]; then
   echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: not present"
