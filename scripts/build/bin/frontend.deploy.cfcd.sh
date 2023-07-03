@@ -23,6 +23,7 @@ if [[ $STAGING_DISTRIBUTION_CLEANUP_ENABLED == true || $STAGING_DISTRIBUTION_ID 
   prod_distribution_etag=$(jq -r '.ETag' <<<"$prod_distribution")
   stg_distribution=$(copy_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_etag")
   STAGING_DISTRIBUTION_ID=$(jq -r '.Distribution.Id' <<<"$stg_distribution")
+  echo "PROCESS: Checking environment variable '$(env | grep "STAGING_DISTRIBUTION_ID")'"
 
   echo "PROCESS: Creating CloudFront continuous deployment policy."
   continuous_deployment_policy_config=$(
