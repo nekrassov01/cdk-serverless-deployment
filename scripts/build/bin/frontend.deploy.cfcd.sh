@@ -15,10 +15,10 @@ done
 header_k=$(jq -r .header <<<"$CONTINUOUS_DEPLOYMENT_POLICY_CUSTOM_HEADER")
 header_v=$(jq .value <<<"$CONTINUOUS_DEPLOYMENT_POLICY_CUSTOM_HEADER")
 
-if [[ $STAGING_DISTRIBUTION_CLEANUP == "false" ]]; then
-  echo "STAGING_DISTRIBUTION_CLEANUP == false"
+if [[ $STAGING_DISTRIBUTION_CLEANUP_ENABLED == "false" ]]; then
+  echo "STAGING_DISTRIBUTION_CLEANUP_ENABLED == false"
 else
-  echo "STAGING_DISTRIBUTION_CLEANUP == not false"
+  echo "STAGING_DISTRIBUTION_CLEANUP_ENABLED == not false"
 fi
 
 if [[ $STAGING_DISTRIBUTION_ID == "dummy" || $STAGING_DISTRIBUTION_ID == "deleted" ]]; then

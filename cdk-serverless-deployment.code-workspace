@@ -36,6 +36,7 @@
   "settings": {
     "jest.autoRun": "off",
     "jest.jestCommandLine": "npm run test --",
-    "jest.disabledWorkspaceFolders": ["root", "infra", "scripts"]
+    "jest.disabledWorkspaceFolders": ["root", "infra", "scripts"],
+    "json.schemaDownload.enable": true
   }
 }
