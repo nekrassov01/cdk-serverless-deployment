@@ -16,12 +16,18 @@ header_k=$(jq -r .header <<<"$CONTINUOUS_DEPLOYMENT_POLICY_CUSTOM_HEADER")
 header_v=$(jq .value <<<"$CONTINUOUS_DEPLOYMENT_POLICY_CUSTOM_HEADER")
 
 if [[ $STAGING_DISTRIBUTION_CLEANUP_ENABLED == "false" ]]; then
-  echo "STAGING_DISTRIBUTION_CLEANUP_ENABLED == false"
+  echo "STAGING_DISTRIBUTION_CLEANUP_ENABLED_1 == false"
 else
-  echo "STAGING_DISTRIBUTION_CLEANUP_ENABLED == not false"
+  echo "STAGING_DISTRIBUTION_CLEANUP_ENABLED_1 == not false"
 fi
 
-if [[ $STAGING_DISTRIBUTION_ID == "dummy" || $STAGING_DISTRIBUTION_ID == "deleted" ]]; then
+if [[ $STAGING_DISTRIBUTION_CLEANUP_ENABLED == false ]]; then
+  echo "STAGING_DISTRIBUTION_CLEANUP_ENABLED_2 == false"
+else
+  echo "STAGING_DISTRIBUTION_CLEANUP_ENABLED_2 == not false"
+fi
+
+if [[ $STAGING_DISTRIBUTION_CLEANUP_ENABLED == "true" || $STAGING_DISTRIBUTION_ID == "dummy" || $STAGING_DISTRIBUTION_ID == "deleted" ]]; then
   echo "PROCESS: Checking for CloudFront staging distribution ID in SSM parameter store: not present"
 
   echo "PROCESS: Copying CloudFront production distribution for staging distribution."
