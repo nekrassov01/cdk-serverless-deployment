@@ -26,6 +26,7 @@ if [[ $STAGING_DISTRIBUTION_ID == "dummy" || $STAGING_DISTRIBUTION_ID == "delete
 
   echo "PROCESS: Copying CloudFront production distribution for staging distribution."
   prod_distribution=$(get_distribution "$PRODUCTION_DISTRIBUTION_ID")
+  stg_distribution_id=$(jq -r '.Distribution.Id' <<<"$stg_distribution")
   prod_distribution_etag=$(jq -r '.ETag' <<<"$prod_distribution")
   stg_distribution=$(copy_distribution "$PRODUCTION_DISTRIBUTION_ID" "$prod_distribution_etag")
 
