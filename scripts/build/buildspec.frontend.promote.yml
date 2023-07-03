@@ -9,3 +9,6 @@ phases:
   post_build:
     commands:
       - bash scripts/build/bin/frontend.invalidate.sh
+artifacts:
+  files:
+    - "**/*"

@@ -158,7 +158,7 @@ export class CicdStack extends Stack {
     const frontendSourceOutput = new codepipeline.Artifact(sourceStageName);
     const frontendBuildOutput = new codepipeline.Artifact(buildStageName);
     const frontendDeployOutput = new codepipeline.Artifact(deployStageName);
-    const frontendPromoteOutput = new codepipeline.Artifact(cleanupStageName);
+    const frontendPromoteOutput = new codepipeline.Artifact(promoteStageName);
 
     // Create s3 bucket for frontend pipeline artifact
     const frontendArtifactBucket = common.createBucket(this, "FrontendArtifactBucket", {
