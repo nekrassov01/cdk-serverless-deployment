@@ -70,9 +70,8 @@ else
 fi
 
 echo "PROCESS: Updating CloudFront staging distribution config for application frontend version: '$FRONTEND_VERSION'"
-stg_distribution=$(get_distribution "$STAGING_DISTRIBUTION_ID")
 stg_distribution_id=$(jq -r '.Distribution.Id' <<<"$stg_distribution")
-stg_distribution_etag=$(jq -r '.ETag' <<<"$stg_distribution")
+stg_distribution_etag=$(get_distribution_etag "$stg_distribution_id")
 stg_distribution_config=$(
   jq --arg bucket "$BUCKET_NAME" --arg version "/$FRONTEND_VERSION" '
   .Distribution.DistributionConfig.Origins.Items[] |=
