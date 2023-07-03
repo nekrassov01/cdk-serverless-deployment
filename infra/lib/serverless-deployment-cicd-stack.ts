@@ -242,7 +242,11 @@ export class CicdStack extends Stack {
             }),
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
-              actions: ["cloudfront:CreateContinuousDeploymentPolicy"],
+              actions: [
+                "cloudfront:GetContinuousDeploymentPolicy",
+                "cloudfront:CreateContinuousDeploymentPolicy",
+                "cloudfront:UpdateContinuousDeploymentPolicy",
+              ],
               resources: [`arn:aws:cloudfront::${this.account}:continuous-deployment-policy/*`],
             }),
             new iam.PolicyStatement({
@@ -284,6 +288,18 @@ export class CicdStack extends Stack {
         PRODUCTION_DISTRIBUTION_ID: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
           value: common.getResourceNamePath("cloudfront/cfcd-production"),
+        },
+        STAGING_DISTRIBUTION_ID: {
+          type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+          value: common.getResourceNamePath("cloudfront/cfcd-staging"),
+        },
+        STAGING_DISTRIBUTION_CLEANUP: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: resourceConfig.cloudfront.stagingDistributionCleanup,
+        },
+        CONTINUOUS_DEPLOYMENT_POLICY_CUSTOM_HEADER: {
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+          value: JSON.stringify(resourceConfig.cloudfront.singleHeaderConfig),
         },
         FRONTEND_VERSION: {
           type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
@@ -494,7 +510,7 @@ export class CicdStack extends Stack {
     });
 
     // Create frontend pipeline
-    const frontendPipeline = new codepipeline.Pipeline(this, "Pipeline", {
+    new codepipeline.Pipeline(this, "Pipeline", {
       pipelineName: common.getResourceName("frontend-pipeline"),
       role: frontendPipelineRole,
       artifactBucket: frontendArtifactBucket,
@@ -538,113 +554,113 @@ export class CicdStack extends Stack {
       })
     );
 
-    // Create codebuild project role when approval failed
-    const frontendCleanupProjectRole = new iam.Role(this, "FrontendCleanupProjectRole", {
-      roleName: common.getResourceName("frontend-cleanup-project-role"),
-      assumedBy: new iam.ServicePrincipal("codebuild.amazonaws.com"),
-      inlinePolicies: {
-        ["FrontendCleanupProjectRoleAdditionalPolicy"]: new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter"],
-              resources: [`arn:aws:ssm:${this.region}:${this.account}:*`],
-            }),
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ["s3:GetBucketAcl", "s3:PutBucketAcl"],
-              resources: [cloudfrontLogBucket.bucketArn, cloudfrontLogBucket.bucketArn + "/*"],
-            }),
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: [
-                "cloudfront:GetDistribution",
-                "cloudfront:GetDistributionConfig",
-                "cloudfront:DeleteDistribution",
-                "cloudfront:UpdateDistribution",
-                "cloudfront:GetInvalidation",
-                "cloudfront:CreateInvalidation",
-              ],
-              resources: [`arn:aws:cloudfront::${this.account}:distribution/*`],
-            }),
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ["cloudfront:GetContinuousDeploymentPolicy", "cloudfront:DeleteContinuousDeploymentPolicy"],
-              resources: [`arn:aws:cloudfront::${this.account}:continuous-deployment-policy/*`],
-            }),
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ["wafv2:GetWebACL"],
-              resources: [environmentConfig.webAcl],
-            }),
-          ],
-        }),
-      },
-    });
-
-    // Create codebuild project when approval failed
-    const frontendCleanupProject = new codebuild.Project(this, "FrontendCleanupProject", {
-      projectName: common.getResourceName("frontend-cleanup-project"),
-      source: codebuild.Source.codeCommit({
-        repository: codeCommitRepository,
-        branchOrRef: branch,
-        cloneDepth: 1,
-      }),
-      buildSpec: codebuild.BuildSpec.fromSourceFilename(
-        `${resourceConfig.codebuild.localDir}/buildspec.frontend.cleanup.yml`
-      ),
-      environment: {
-        buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
-      },
-      environmentVariables: {
-        PRODUCTION_DISTRIBUTION_ID: {
-          type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
-          value: common.getResourceNamePath("cloudfront/cfcd-production"),
-        },
-        STAGING_DISTRIBUTION_ID: {
-          type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
-          value: common.getResourceNamePath("cloudfront/cfcd-staging"),
-        },
-      },
-      badge: false,
-      role: frontendCleanupProjectRole,
-      logging: {
-        cloudWatch: {
-          logGroup: new logs.LogGroup(this, "FrontendCleanupProjectLogGroup", {
-            logGroupName: common.getResourceNamePath("codebuild/frontend-cleanup-project"),
-            removalPolicy: common.getRemovalPolicy(),
-            retention: common.getLogsRetentionDays(),
-          }),
-        },
-      },
-    });
-
-    // Create event role for frontend cleanup project
-    const frontendCleanupEventRole = new iam.Role(this, "frontendCleanupEventRole", {
-      roleName: common.getResourceName("frontend-cleanup-event-role"),
-      assumedBy: new iam.ServicePrincipal("events.amazonaws.com"),
-    });
-
-    // Create eventbridge rule when approval failed
-    const frontendPipelineEventRule = new events.Rule(this, "FrontendCleanupEventRule", {
-      enabled: true,
-      ruleName: common.getResourceName("frontend-cleanup-rule"),
-      eventPattern: {
-        source: ["aws.codepipeline"],
-        detailType: ["CodePipeline Action Execution State Change"],
-        resources: [frontendPipeline.pipelineArn],
-        detail: {
-          stage: [approveStageName],
-          action: [approveStageName],
-          state: ["FAILED"],
-        },
-      },
-    });
-    frontendPipelineEventRule.addTarget(
-      new events_targets.CodeBuildProject(frontendCleanupProject, {
-        eventRole: frontendCleanupEventRole,
-      })
-    );
+    //// Create codebuild project role when approval failed
+    //const frontendCleanupProjectRole = new iam.Role(this, "FrontendCleanupProjectRole", {
+    //  roleName: common.getResourceName("frontend-cleanup-project-role"),
+    //  assumedBy: new iam.ServicePrincipal("codebuild.amazonaws.com"),
+    //  inlinePolicies: {
+    //    ["FrontendCleanupProjectRoleAdditionalPolicy"]: new iam.PolicyDocument({
+    //      statements: [
+    //        new iam.PolicyStatement({
+    //          effect: iam.Effect.ALLOW,
+    //          actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter"],
+    //          resources: [`arn:aws:ssm:${this.region}:${this.account}:*`],
+    //        }),
+    //        new iam.PolicyStatement({
+    //          effect: iam.Effect.ALLOW,
+    //          actions: ["s3:GetBucketAcl", "s3:PutBucketAcl"],
+    //          resources: [cloudfrontLogBucket.bucketArn, cloudfrontLogBucket.bucketArn + "/*"],
+    //        }),
+    //        new iam.PolicyStatement({
+    //          effect: iam.Effect.ALLOW,
+    //          actions: [
+    //            "cloudfront:GetDistribution",
+    //            "cloudfront:GetDistributionConfig",
+    //            "cloudfront:DeleteDistribution",
+    //            "cloudfront:UpdateDistribution",
+    //            "cloudfront:GetInvalidation",
+    //            "cloudfront:CreateInvalidation",
+    //          ],
+    //          resources: [`arn:aws:cloudfront::${this.account}:distribution/*`],
+    //        }),
+    //        new iam.PolicyStatement({
+    //          effect: iam.Effect.ALLOW,
+    //          actions: ["cloudfront:GetContinuousDeploymentPolicy", "cloudfront:DeleteContinuousDeploymentPolicy"],
+    //          resources: [`arn:aws:cloudfront::${this.account}:continuous-deployment-policy/*`],
+    //        }),
+    //        new iam.PolicyStatement({
+    //          effect: iam.Effect.ALLOW,
+    //          actions: ["wafv2:GetWebACL"],
+    //          resources: [environmentConfig.webAcl],
+    //        }),
+    //      ],
+    //    }),
+    //  },
+    //});
+    //
+    //// Create codebuild project when approval failed
+    //const frontendCleanupProject = new codebuild.Project(this, "FrontendCleanupProject", {
+    //  projectName: common.getResourceName("frontend-cleanup-project"),
+    //  source: codebuild.Source.codeCommit({
+    //    repository: codeCommitRepository,
+    //    branchOrRef: branch,
+    //    cloneDepth: 1,
+    //  }),
+    //  buildSpec: codebuild.BuildSpec.fromSourceFilename(
+    //    `${resourceConfig.codebuild.localDir}/buildspec.frontend.cleanup.yml`
+    //  ),
+    //  environment: {
+    //    buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
+    //  },
+    //  environmentVariables: {
+    //    PRODUCTION_DISTRIBUTION_ID: {
+    //      type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+    //      value: common.getResourceNamePath("cloudfront/cfcd-production"),
+    //    },
+    //    STAGING_DISTRIBUTION_ID: {
+    //      type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+    //      value: common.getResourceNamePath("cloudfront/cfcd-staging"),
+    //    },
+    //  },
+    //  badge: false,
+    //  role: frontendCleanupProjectRole,
+    //  logging: {
+    //    cloudWatch: {
+    //      logGroup: new logs.LogGroup(this, "FrontendCleanupProjectLogGroup", {
+    //        logGroupName: common.getResourceNamePath("codebuild/frontend-cleanup-project"),
+    //        removalPolicy: common.getRemovalPolicy(),
+    //        retention: common.getLogsRetentionDays(),
+    //      }),
+    //    },
+    //  },
+    //});
+    //
+    //// Create event role for frontend cleanup project
+    //const frontendCleanupEventRole = new iam.Role(this, "frontendCleanupEventRole", {
+    //  roleName: common.getResourceName("frontend-cleanup-event-role"),
+    //  assumedBy: new iam.ServicePrincipal("events.amazonaws.com"),
+    //});
+    //
+    //// Create eventbridge rule when approval failed
+    //const frontendPipelineEventRule = new events.Rule(this, "FrontendCleanupEventRule", {
+    //  enabled: true,
+    //  ruleName: common.getResourceName("frontend-cleanup-rule"),
+    //  eventPattern: {
+    //    source: ["aws.codepipeline"],
+    //    detailType: ["CodePipeline Action Execution State Change"],
+    //    resources: [frontendPipeline.pipelineArn],
+    //    detail: {
+    //      stage: [approveStageName],
+    //      action: [approveStageName],
+    //      state: ["FAILED"],
+    //    },
+    //  },
+    //});
+    //frontendPipelineEventRule.addTarget(
+    //  new events_targets.CodeBuildProject(frontendCleanupProject, {
+    //    eventRole: frontendCleanupEventRole,
+    //  })
+    //);
 
     /**
      * Backend pipeline

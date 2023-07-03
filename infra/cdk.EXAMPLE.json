@@ -57,6 +57,13 @@
         "alias": "live",
         "package": "function.zip"
       },
+      "cloudfront": {
+        "singleHeaderConfig": {
+          "header": "aws-cfcd-staging",
+          "value": true
+        },
+        "stagingDistributionCleanup": false
+      },
       "codebuild": {
         "localDir": "scripts/build"
       }

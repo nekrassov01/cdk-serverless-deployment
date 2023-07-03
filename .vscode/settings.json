@@ -26,11 +26,8 @@
     { "language": "typescript", "autoFix": true },
     { "language": "typescriptreact", "autoFix": true }
   ],
-  "jest.autoRun": "off",
-  "jest.shell": {
-    "path": "/usr/bin/env",
-    "args": ["bash", "--login"]
-  },
+  //"jest.autoRun": "off",
+  //"jest.jestCommandLine": "npm run test --",
   "[go]": {
     "editor.tabSize": 4
   }

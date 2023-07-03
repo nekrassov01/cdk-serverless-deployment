@@ -40,9 +40,9 @@ deploy_content() {
   }
 }
 
-get_distribution_etag() {
-  aws cloudfront get-distribution --id "$1" --query "ETag" --output text || {
-    echo "ERROR: Failed to get 'ETag' from '$1'."
+get_distribution() {
+  aws cloudfront get-distribution --id "$1" || {
+    echo "ERROR: Failed to get distribution from '$1'."
     exit 1
   }
 }
@@ -50,6 +50,13 @@ get_distribution_etag() {
 get_distribution_arn() {
   aws cloudfront get-distribution --id "$1" --query 'Distribution.ARN' --output text || {
     echo "ERROR: Failed to get 'ARN' from '$1'."
+    exit 1
+  }
+}
+
+get_distribution_etag() {
+  aws cloudfront get-distribution --id "$1" --query "ETag" --output text || {
+    echo "ERROR: Failed to get 'ETag' from '$1'."
     exit 1
   }
 }
@@ -68,6 +75,13 @@ update_distribution() {
   }
 }
 
+delete_distribution() {
+  aws cloudfront delete-distribution --id "$1" --if-match "$2" || {
+    echo "ERROR: Failed to delete distribution '$1'."
+    exit 1
+  }
+}
+
 copy_distribution() {
   aws cloudfront copy-distribution --primary-distribution-id "$1" --if-match "$2" --staging --caller-reference "$(date +%Y%m%d%H%M%S)" || {
     echo "ERROR: Failed to copy distribution '$1' for staging distribution."
@@ -75,16 +89,16 @@ copy_distribution() {
   }
 }
 
-create_continuous_deployment_policy() {
-  aws cloudfront create-continuous-deployment-policy --continuous-deployment-policy-config "$1" || {
-    echo "ERROR: Failed to create continuous deployment policy."
-
+get_continuous_deployment_policy_id_from_distribution() {
+  aws cloudfront get-distribution --id "$1" --query "Distribution.DistributionConfig.ContinuousDeploymentPolicyId" --output text || {
+    echo "ERROR: Failed to get continuous deployment policy '$1' id."
+    exit 1
   }
 }
 
-update_distribution_with_staging_config() {
-  aws cloudfront update-distribution-with-staging-config --id "$1" --staging-distribution-id "$2" --if-match "$3","$4" || {
-    echo "ERROR: Failed to update distribution '$1' with staging distribution '$2' config."
+get_continuous_deployment_policy() {
+  aws cloudfront get-continuous-deployment-policy --id "$1" || {
+    echo "ERROR: Failed to get continuous deployment policy '$1'."
     exit 1
   }
 }
@@ -96,6 +110,20 @@ get_continuous_deployment_policy_etag() {
   }
 }
 
+create_continuous_deployment_policy() {
+  aws cloudfront create-continuous-deployment-policy --continuous-deployment-policy-config "$1" || {
+    echo "ERROR: Failed to create continuous deployment policy."
+
+  }
+}
+
+update_continuous_deployment_policy() {
+  aws cloudfront update-continuous-deployment-policy --id "$1" --if-match "$2" --continuous-deployment-policy-config "$3" || {
+    echo "ERROR: Failed to update continuous deployment policy '$1'."
+    exit 1
+  }
+}
+
 delete_continuous_deployment_policy() {
   aws cloudfront delete-continuous-deployment-policy --id "$1" --if-match "$2" || {
     echo "ERROR: Failed to delete continuous deployment policy '$1'."
@@ -103,9 +131,9 @@ delete_continuous_deployment_policy() {
   }
 }
 
-delete_distribution() {
-  aws cloudfront delete-distribution --id "$1" --if-match "$2" || {
-    echo "ERROR: Failed to delete distribution '$1'."
+update_distribution_with_staging_config() {
+  aws cloudfront update-distribution-with-staging-config --id "$1" --staging-distribution-id "$2" --if-match "$3","$4" || {
+    echo "ERROR: Failed to update distribution '$1' with staging distribution '$2' config."
     exit 1
   }
 }
@@ -144,7 +172,7 @@ wait_distribution_deploy() {
 }
 
 tag_distribution() {
-  aws cloudfront tag-resource --resource "$1" --tags "$2=$3" || {
+  aws cloudfront tag-resource --resource "$1" --tags "Items=[{Key=$2,Value=$3}]" || {
     echo "ERROR: Failed to tag $2 for $1."
     exit 1
   }
@@ -173,7 +201,7 @@ update_function_alias() {
 
 tag_function() {
   aws lambda tag-resource --resource "$1" --tags "$2=$3" || {
-    echo "ERROR: Failed to tag function for $1."
+    echo "ERROR: Failed to tag $2 for $1."
     exit 1
   }
 }

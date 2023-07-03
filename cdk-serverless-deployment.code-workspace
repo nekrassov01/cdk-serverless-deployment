@@ -34,7 +34,8 @@
     }
   ],
   "settings": {
-    "jest.disabledWorkspaceFolders": ["root", "infra", "scripts"],
-    "workbench.settings.openDefaultSettings": true
+    "jest.autoRun": "off",
+    "jest.jestCommandLine": "npm run test --",
+    "jest.disabledWorkspaceFolders": ["root", "infra", "scripts"]
   }
 }

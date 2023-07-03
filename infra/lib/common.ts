@@ -51,6 +51,13 @@ export interface IResourceConfig {
     alias: string;
     package: string;
   };
+  cloudfront: {
+    singleHeaderConfig: {
+      header: string;
+      value: boolean;
+    };
+    stagingDistributionCleanup: boolean;
+  };
   codebuild: {
     localDir: string;
   };
