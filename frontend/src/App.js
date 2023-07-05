@@ -21,7 +21,7 @@ function App() {
   }, []);
 
   return (
-    <div className="dark-container">
+    <div className="container">
       {error && <div>Error: {error}</div>}
       {data && (
         <SyntaxHighlighter language="json" style={githubGist}>
