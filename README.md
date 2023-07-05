@@ -166,3 +166,7 @@ The main resources to be deployed are:
 1. Continuous deployment of CloudFront is performed by CodeBuild. Only requests with specific headers will be routed to the staging distribution.
 1. If the test is OK, pass it through manually at the approval stage.
 1. The staging distribution configuration overrides the production distribution, and the staging distribution that is no longer needed is removed (performed by CodeBuild)
+
+## Cation
+
+This sample is for verification purposes and draws lambda environment variables and API Gateway event information for debugging. To block unexpected requests, set IP-based access control in the Web ACL.
