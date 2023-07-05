@@ -143,7 +143,6 @@ export class CicdStack extends Stack {
         resources: [codeCommitRepository.repositoryArn],
         detail: {
           event: ["referenceUpdated"],
-          referenceType: ["branch"],
           referenceName: [branch],
         },
       },
