@@ -781,7 +781,7 @@ export class CicdStack extends Stack {
       });
 
       // Create eventbridge rule when approval failed
-      const frontendPipelinPurgeEventRule = new events.Rule(this, "FrontendPurgeEventRule", {
+      const frontendPurgeEventRule = new events.Rule(this, "FrontendPurgeEventRule", {
         enabled: true,
         ruleName: common.getResourceName("frontend-purge-rule"),
         eventPattern: {
@@ -795,7 +795,7 @@ export class CicdStack extends Stack {
           },
         },
       });
-      frontendPipelinPurgeEventRule.addTarget(
+      frontendPurgeEventRule.addTarget(
         new events_targets.CodeBuildProject(frontendPurgeProject, {
           eventRole: frontendPurgeEventRole,
         })
