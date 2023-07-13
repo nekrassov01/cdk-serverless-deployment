@@ -70,6 +70,7 @@ export interface IEnvironmentConfig {
   region: string;
   hostedZone: string;
   webAcl: string;
+  isDev: boolean;
 }
 
 // Environment config from context.containers

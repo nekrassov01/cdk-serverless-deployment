@@ -63,21 +63,24 @@ Configure each context in `cdk.json`. Sample as follows:
         "account": "000000000000",
         "region": "ap-northeast-1",
         "hostedZone": "dev.example.com",
-        "webAcl": "dummy-arn-1"
+        "webAcl": "dummy-arn-1",
+        "isDev": true
       },
       {
         "name": "stg",
         "account": "111111111111",
         "region": "ap-northeast-1",
         "hostedZone": "stg.example.com",
-        "webAcl": "dummy-arn-2"
+        "webAcl": "dummy-arn-2",
+        "isDev": false
       },
       {
         "name": "prod",
         "account": "222222222222",
         "region": "ap-northeast-1",
         "hostedZone": "example.com",
-        "webAcl": "dummy-arn-3"
+        "webAcl": "dummy-arn-3",
+        "isDev": false
       }
     ],
     "pipelines": [
@@ -130,7 +133,7 @@ The following process will be executed:
    3. Upload lambda package to bucket.
 
 ```bash
-bash /scripts/helper/init.sh "v1"
+bash scripts/helper/init.sh "v1"
 ```
 
 ## Deploy stacks
