@@ -62,7 +62,7 @@
           "header": "aws-cf-cd-staging",
           "value": true
         },
-        "stagingDistributionCleanup": false
+        "stagingDistributionCleanupEnabled": false
       },
       "codebuild": {
         "localDir": "scripts/build"
