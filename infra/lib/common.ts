@@ -90,6 +90,12 @@ export interface IPipelineConfig {
   type: PipelineType;
 }
 
+// Function config from context.functions
+export interface IFunctionConfig {
+  name: string;
+  endpointPrefix: string;
+}
+
 // S3 parameters
 interface IS3Parameter {
   removalPolicy: RemovalPolicy;
@@ -205,6 +211,7 @@ export class Common {
   public readonly environmentNames = Object.values(environmentName);
   public readonly pipelines = app.node.tryGetContext("pipelines");
   public readonly containers = app.node.tryGetContext("containers");
+  public readonly functions = app.node.tryGetContext("functions");
 
   // Validate environment settings and return bool
   private isValidEnvironmentConfig(): boolean {
@@ -918,6 +925,28 @@ export class Common {
     }
 
     return alias;
+  }
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  public updateApiDefinition(data: any, functionData: { functionMapping: IFunctionConfig; arn: string }[]): any {
+    Object.entries(data.paths).forEach(([path, pathData]) => {
+      functionData.forEach(({ functionMapping, arn }) => {
+        if (path.startsWith(functionMapping.endpointPrefix)) {
+          Object.values(pathData as any).forEach((method: any) => {
+            const uri = method["x-amazon-apigateway-integration"]?.uri;
+
+            if (uri) {
+              const regex = /arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[a-zA-Z0-9-_]{3,64}:[a-zA-Z0-9-_]{1,128}/;
+              const updatedArn = uri.replace(regex, arn);
+
+              method["x-amazon-apigateway-integration"].uri = updatedArn;
+            }
+          });
+        }
+      });
+    });
+
+    return data;
   }
 }
 

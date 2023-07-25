@@ -16,6 +16,7 @@ const domainName = common.getDomain();
 const environmentConfig = common.getEnvironmentConfig();
 const resourceConfig = common.resourceConfig;
 const pipelines = common.pipelines;
+const functions = common.functions;
 const addresses = common.addresses;
 const env = {
   account: environmentConfig.account,
@@ -37,6 +38,7 @@ const appStack = new AppStack(app, stackMap.appStack, {
   domainName: domainName,
   environmentConfig: environmentConfig,
   resourceConfig: resourceConfig,
+  functions: functions,
 });
 const cicdStack = new CicdStack(app, stackMap.cicdStack, {
   env: env,
