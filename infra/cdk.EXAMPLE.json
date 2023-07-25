@@ -121,6 +121,24 @@
         "type": "frontend"
       }
     ],
+    "functions": [
+      {
+        "name": "item1",
+        "endpointPrefix": "/v1/items/item1"
+      },
+      {
+        "name": "item2",
+        "endpointPrefix": "/v1/items/item2"
+      },
+      {
+        "name": "item1-v2",
+        "endpointPrefix": "/v2/items/item1"
+      },
+      {
+        "name": "item2-v2",
+        "endpointPrefix": "/v2/items/item2"
+      }
+    ],
     "containers": [
       {
         "name": "sample",
