@@ -1001,11 +1001,7 @@ export class CicdStack extends Stack {
               new iam.PolicyStatement({
                 effect: iam.Effect.ALLOW,
                 actions: ["codebuild:BatchGetBuilds", "codebuild:StartBuild"],
-                resources: [
-                  frontendBuildProject.projectArn,
-                  frontendDeployProject.projectArn,
-                  frontendPromoteProject.projectArn,
-                ],
+                resources: [backendBuildProject.projectArn, backendDeployProject.projectArn],
               }),
             ],
           }),
