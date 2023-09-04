@@ -150,7 +150,7 @@ func handleRequest(ctx context.Context, event events.CloudWatchEvent) error {
 		}
 	}
 
-	log.Printf("All pipelines started successfully")
+	log.Printf("all pipelines started successfully")
 	return nil
 }
 

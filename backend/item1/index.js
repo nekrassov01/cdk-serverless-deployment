@@ -1,4 +1,6 @@
 exports.handler = async (event, context) => {
+  console.log("test");
+
   return {
     statusCode: 200,
     headers: { "Content-Type": "application/json" },
