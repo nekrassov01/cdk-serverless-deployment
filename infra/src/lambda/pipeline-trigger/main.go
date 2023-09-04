@@ -16,12 +16,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/codepipeline"
 )
 
+// Information about a pipeline such as its name and target path
 type PipelineInfo struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
-	Type string `json:"type"`
 }
 
+// Information about the event detail in CodeCommit
 type CodeCommitDetail struct {
 	Event                      string `json:"event"`
 	RepositoryName             string `json:"repositoryName"`
@@ -39,8 +40,10 @@ type CodeCommitDetail struct {
 	ConflictResolutionStrategy string `json:"conflictResolutionStrategy"`
 }
 
+// Global AWS SDK configuration
 var cfg aws.Config
 
+// Initializes the AWS SDK configuration
 func init() {
 	var err error
 	cfg, err = config.LoadDefaultConfig(context.TODO())
@@ -49,6 +52,7 @@ func init() {
 	}
 }
 
+// Retrieves the files that have changed between last 2 commits
 func getChangedFiles(ctx context.Context, repositoryName string, oldCommitId string, commitId string) ([]string, error) {
 	var (
 		paths     []string
@@ -83,6 +87,7 @@ func getChangedFiles(ctx context.Context, repositoryName string, oldCommitId str
 	return paths, nil
 }
 
+// Determines which pipelines should be triggered based on the changed paths
 func getPipelines(paths []string, pipelines []PipelineInfo) map[string]struct{} {
 	targets := make(map[string]struct{})
 	prefix := strings.Split(os.Getenv("AWS_LAMBDA_FUNCTION_NAME"), "pipeline-handler")[0]
@@ -105,6 +110,7 @@ func getPipelines(paths []string, pipelines []PipelineInfo) map[string]struct{} 
 	return targets
 }
 
+// Starts a CodePipeline execution
 func startPipeline(ctx context.Context, pipelineName string) error {
 	client := codepipeline.NewFromConfig(cfg)
 
@@ -122,6 +128,7 @@ func startPipeline(ctx context.Context, pipelineName string) error {
 	return nil
 }
 
+// Lambda function handler that triggers pipelines based on changes in CodeCommit repositories
 func handleRequest(ctx context.Context, event events.CloudWatchEvent) error {
 	pipelineConfig := os.Getenv("PIPELINES")
 	if pipelineConfig == "" {
@@ -154,6 +161,7 @@ func handleRequest(ctx context.Context, event events.CloudWatchEvent) error {
 	return nil
 }
 
+// Entrypoint of the Lambda function
 func main() {
 	lambda.Start(handleRequest)
 }
