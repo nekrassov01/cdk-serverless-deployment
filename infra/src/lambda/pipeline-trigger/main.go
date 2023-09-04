@@ -16,14 +16,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/codepipeline"
 )
 
-// Information about a pipeline such as its name and target path
 type PipelineInfo struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
 	Type string `json:"type"`
 }
 
-// Information about the event detail in CodeCommit
 type CodeCommitDetail struct {
 	Event                      string `json:"event"`
 	RepositoryName             string `json:"repositoryName"`
@@ -41,106 +39,121 @@ type CodeCommitDetail struct {
 	ConflictResolutionStrategy string `json:"conflictResolutionStrategy"`
 }
 
-// Retrieves the files that have changed between last 2 commits
-func getChangedFiles(ctx context.Context, cfg *aws.Config, repositoryName string, oldCommitId string, commitId string) ([]string, error) {
-	// Create a CodeCommit client from the configuration
-	client := codecommit.NewFromConfig(*cfg)
+var cfg aws.Config
 
-	// Request the differences between the two specified commits
-	resp, err := client.GetDifferences(ctx, &codecommit.GetDifferencesInput{
-		RepositoryName:        aws.String(repositoryName),
-		BeforeCommitSpecifier: aws.String(oldCommitId),
-		AfterCommitSpecifier:  aws.String(commitId),
-	})
+func init() {
+	var err error
+	cfg, err = config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		return nil, fmt.Errorf("getting differences failed: %w", err)
+		log.Fatalf("cannot load aws sdk config: %v", err)
 	}
+}
 
-	// Extract file paths from the differences
-	var paths []string
-	if len(resp.Differences) > 0 {
+func getChangedFiles(ctx context.Context, repositoryName string, oldCommitId string, commitId string) ([]string, error) {
+	var (
+		paths     []string
+		nextToken *string
+	)
+
+	client := codecommit.NewFromConfig(cfg)
+
+	for {
+		resp, err := client.GetDifferences(ctx, &codecommit.GetDifferencesInput{
+			RepositoryName:        aws.String(repositoryName),
+			BeforeCommitSpecifier: aws.String(oldCommitId),
+			AfterCommitSpecifier:  aws.String(commitId),
+			NextToken:             nextToken,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("cannot get file diff: %w", err)
+		}
+
 		for _, diff := range resp.Differences {
 			if diff.AfterBlob != nil && diff.AfterBlob.Path != nil {
 				paths = append(paths, *diff.AfterBlob.Path)
 			}
+		}
+
+		nextToken = resp.NextToken
+		if nextToken == nil {
+			break
 		}
 	}
 
 	return paths, nil
 }
 
-// Starts a CodePipeline execution
-func startPipeline(ctx context.Context, cfg *aws.Config, pipelineName string) (*codepipeline.StartPipelineExecutionOutput, error) {
-	// Create a CodePipeline client from the configuration
-	client := codepipeline.NewFromConfig(*cfg)
-
-	// Start the execution of the specified pipeline
-	resp, err := client.StartPipelineExecution(ctx, &codepipeline.StartPipelineExecutionInput{
-		Name: aws.String(pipelineName),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("starting pipeline failed: %w", err)
-	}
-	return resp, nil
-}
-
-// Lambda function handler that triggers pipelines based on changes in CodeCommit repositories
-func handleRequest(ctx context.Context, event events.CloudWatchEvent) {
-	// Retrieve pipeline configuration from the environment variable
-	pipelineMap := os.Getenv("PIPELINES")
-	if pipelineMap == "" {
-		log.Fatalf("Error environment variable PIPELINES not set")
-	}
-
-	// Parse the pipeline configuration
-	var pipelines []PipelineInfo
-	if err := json.Unmarshal([]byte(pipelineMap), &pipelines); err != nil {
-		log.Fatalf("Error unmarshalling PIPELINES environment variable: %v", err)
-	}
-
-	// Parse the event detail from CodeCommit
-	var detail CodeCommitDetail
-	if err := json.Unmarshal(event.Detail, &detail); err != nil {
-		log.Fatalf("Error unmarshalling event detail: %v", err)
-	}
-
-	// Load AWS SDK configuration
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		log.Fatalf("Error loading SDK configuration: %v", err)
-	}
-
-	// Retrieve the paths of the files that have changed
-	paths, err := getChangedFiles(ctx, &cfg, detail.RepositoryName, detail.OldCommitId, detail.CommitId)
-	if err != nil {
-		log.Fatalf("Error getting changed files: %v", err)
-	}
-
-	// Determine which pipelines should be triggered based on the file paths
-	targetPipelines := make(map[string]struct{})
+func getPipelines(paths []string, pipelines []PipelineInfo) map[string]struct{} {
+	targets := make(map[string]struct{})
 	prefix := strings.Split(os.Getenv("AWS_LAMBDA_FUNCTION_NAME"), "pipeline-handler")[0]
+
+	pathMap := make(map[string]struct{})
+	for _, path := range paths {
+		pathMap[path] = struct{}{}
+	}
+
 	for _, pipeline := range pipelines {
 		pipelineName := prefix + pipeline.Name + "-pipeline"
-		for _, path := range paths {
+		for path := range pathMap {
 			if strings.HasPrefix(path, pipeline.Path) {
-				targetPipelines[pipelineName] = struct{}{}
+				targets[pipelineName] = struct{}{}
 				break
 			}
 		}
 	}
 
-	// Start execution of the target pipelines
-	for pipelineName := range targetPipelines {
-		resp, err := startPipeline(ctx, &cfg, pipelineName)
-		if err != nil {
-			log.Fatalf("Error starting pipeline %s: %v\n", pipelineName, err)
-		}
-		log.Printf("Pipeline started: %s, executionId: %s\n", pipelineName, *resp.PipelineExecutionId)
-	}
-	log.Printf("All pipelines started complete successfully")
+	return targets
 }
 
-// Entrypoint of the Lambda function
+func startPipeline(ctx context.Context, pipelineName string) error {
+	client := codepipeline.NewFromConfig(cfg)
+
+	resp, err := client.StartPipelineExecution(ctx, &codepipeline.StartPipelineExecutionInput{
+		Name: aws.String(pipelineName),
+	})
+	if err != nil {
+		return fmt.Errorf("cannot start pipeline \"%s\": %w", pipelineName, err)
+	}
+	if resp.PipelineExecutionId == nil {
+		return fmt.Errorf("cannot get executionId \"%s\"", pipelineName)
+	}
+
+	log.Printf("pipeline started: %s, executionId: %s\n", pipelineName, *resp.PipelineExecutionId)
+	return nil
+}
+
+func handleRequest(ctx context.Context, event events.CloudWatchEvent) error {
+	pipelineConfig := os.Getenv("PIPELINES")
+	if pipelineConfig == "" {
+		return fmt.Errorf("PIPELINES environment variable is missing")
+	}
+
+	var pipelines []PipelineInfo
+	if err := json.Unmarshal([]byte(pipelineConfig), &pipelines); err != nil {
+		return fmt.Errorf("cannot unmarshal PIPELINES environment variable: %w", err)
+	}
+
+	var detail CodeCommitDetail
+	if err := json.Unmarshal(event.Detail, &detail); err != nil {
+		return fmt.Errorf("cannot unmarshal event detail: %w", err)
+	}
+
+	paths, err := getChangedFiles(ctx, detail.RepositoryName, detail.OldCommitId, detail.CommitId)
+	if err != nil {
+		return err
+	}
+
+	targetPipelines := getPipelines(paths, pipelines)
+	for pipelineName := range targetPipelines {
+		if err := startPipeline(ctx, pipelineName); err != nil {
+			return err
+		}
+	}
+
+	log.Printf("All pipelines started successfully")
+	return nil
+}
+
 func main() {
 	lambda.Start(handleRequest)
 }
