@@ -20,6 +20,8 @@ import (
 type PipelineInfo struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
+	Type string `json:"type"`
+
 }
 
 // Information about the event detail in CodeCommit
